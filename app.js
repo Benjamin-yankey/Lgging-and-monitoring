@@ -229,6 +229,9 @@ app.get("/", (req, res) => {
         .priority-high { background: #dc3545; color: white; }
         .priority-medium { background: #ffc107; color: black; }
         .priority-low { background: #28a745; color: white; }
+        .todo-due { font-size: 12px; color: #666; margin-right: 10px; }
+        .todo-due.overdue { color: #dc3545; font-weight: bold; }
+        .todo-due.soon { color: #ffc107; font-weight: bold; }
         .delete-btn { background: #dc3545; padding: 8px 15px; font-size: 14px; }
         .delete-btn:hover { background: #c82333; }
         .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin: 20px 0; }
@@ -291,6 +294,10 @@ app.get("/", (req, res) => {
                     <option value="high">High</option>
                 </select>
             </div>
+            <div class="form-group">
+                <label>Due Date (optional)</label>
+                <input type="date" id="dueDate">
+            </div>
             <button type="submit">Add Todo</button>
         </form>
 
@@ -323,14 +330,32 @@ app.get("/", (req, res) => {
                             currentFilter === 'active' ? todos.filter(t => !t.completed) :
                             todos.filter(t => t.completed);
             
-            const html = filtered.map(t => 
-                '<div class="todo-item ' + (t.completed ? 'completed' : '') + '">' +
+            const html = filtered.map(t => {
+                let dueDateHtml = '';
+                if (t.dueDate) {
+                    const due = new Date(t.dueDate);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const dueDateOnly = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+                    const diffDays = Math.ceil((dueDateOnly - today) / (1000 * 60 * 60 * 24));
+                    
+                    let dueClass = 'todo-due';
+                    if (!t.completed && diffDays < 0) dueClass += ' overdue';
+                    else if (!t.completed && diffDays <= 2) dueClass += ' soon';
+                    
+                    const dateStr = due.toLocaleDateString();
+                    const label = diffDays < 0 ? 'Overdue' : diffDays === 0 ? 'Today' : diffDays === 1 ? 'Tomorrow' : dateStr;
+                    dueDateHtml = '<span class="' + dueClass + '">' + label + '</span>';
+                }
+                
+                return '<div class="todo-item ' + (t.completed ? 'completed' : '') + '">' +
                     '<input type="checkbox" class="todo-checkbox" ' + (t.completed ? 'checked' : '') + ' onchange="toggleTodo(' + t.id + ')">' +
                     '<span class="todo-text">' + t.task + '</span>' +
+                    dueDateHtml +
                     '<span class="todo-priority priority-' + t.priority + '">' + t.priority + '</span>' +
                     '<button class="delete-btn" onclick="deleteTodo(' + t.id + ')">Delete</button>' +
-                '</div>'
-            ).join('');
+                '</div>';
+            }).join('');
             document.getElementById('todos').innerHTML = html || '<p>No todos yet</p>';
         }
 
@@ -343,10 +368,12 @@ app.get("/", (req, res) => {
 
         document.getElementById('todoForm').onsubmit = async (e) => {
             e.preventDefault();
+            const dueDateValue = document.getElementById('dueDate').value;
             const data = {
                 task: document.getElementById('task').value,
                 category: document.getElementById('category').value,
-                priority: document.getElementById('priority').value
+                priority: document.getElementById('priority').value,
+                dueDate: dueDateValue || null
             };
             await fetch('/api/todos', {
                 method: 'POST',

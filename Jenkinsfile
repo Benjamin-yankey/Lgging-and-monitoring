@@ -74,13 +74,19 @@ pipeline {
                 echo 'Deploying to EC2...'
                 withCredentials([sshUserPrivateKey(credentialsId: 'ec2_ssh', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
                     sh '''
-                        ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SSH_USER@${EC2_HOST} << EOF
+                        echo "Using SSH key: $SSH_KEY"
+                        echo "SSH user: $SSH_USER"
+                        ls -la "$SSH_KEY" || echo "Key file not found at path"
+                        
+                        ssh -v -i "$SSH_KEY" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $SSH_USER@${EC2_HOST} << 'EOF'
+                            echo "Connected to EC2 successfully"
                             docker stop ${CONTAINER_NAME} || true
                             docker rm ${CONTAINER_NAME} || true
-                            echo $REGISTRY_CREDS_PSW | docker login -u $REGISTRY_CREDS_USR --password-stdin
+                            echo "$REGISTRY_CREDS_PSW" | docker login -u "$REGISTRY_CREDS_USR" --password-stdin
                             docker pull $REGISTRY_CREDS_USR/${DOCKER_IMAGE}:latest
                             docker run -d --name ${CONTAINER_NAME} -p 5000:5000 $REGISTRY_CREDS_USR/${DOCKER_IMAGE}:latest
-                            docker image prune -af
+                            docker ps
+                            echo "Deployment complete"
 EOF
                     '''
                 }
