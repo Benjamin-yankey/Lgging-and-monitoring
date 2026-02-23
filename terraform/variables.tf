@@ -83,3 +83,21 @@ variable "git_repo_url" {
   description = "HTTPS URL of this repository; used by the monitoring EC2 to clone configs and dashboard JSON."
   type        = string
 }
+
+variable "alert_email" {
+  description = "Email address for CloudWatch alerts"
+  type        = string
+  default     = ""
+}
+
+variable "log_retention_days" {
+  description = "CloudWatch log retention in days"
+  type        = number
+  default     = 7
+}
+
+variable "enable_guardduty" {
+  description = "Enable GuardDuty security monitoring"
+  type        = bool
+  default     = true
+}

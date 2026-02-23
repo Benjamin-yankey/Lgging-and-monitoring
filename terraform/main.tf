@@ -37,6 +37,9 @@ provider "aws" {
   }
 }
 
+# Get current AWS account ID
+data "aws_caller_identity" "current" {}
+
 
 # VPC Module
 module "vpc" {
@@ -119,4 +122,20 @@ module "monitoring_server" {
     grafana_admin_password = var.grafana_admin_password
     git_repo_url           = var.git_repo_url
   })
+}
+
+# CloudWatch and GuardDuty Monitoring Module
+module "monitoring" {
+  source = "./modules/monitoring"
+
+  project_name        = var.project_name
+  environment         = var.environment
+  aws_region          = var.aws_region
+  account_id          = data.aws_caller_identity.current.account_id
+  vpc_id              = module.vpc.vpc_id
+  jenkins_instance_id = module.jenkins.instance_id
+  app_instance_id     = module.app_server.instance_id
+  alert_email         = var.alert_email
+  log_retention_days  = var.log_retention_days
+  enable_guardduty    = var.enable_guardduty
 }
