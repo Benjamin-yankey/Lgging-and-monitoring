@@ -20,13 +20,13 @@ Pipeline stages:
 
 **AWS resources created by Terraform:**
 
-| Resource | Purpose |
-|----------|---------|
-| VPC + subnets | Network isolation |
+| Resource        | Purpose                    |
+| --------------- | -------------------------- |
+| VPC + subnets   | Network isolation          |
 | Security groups | Restrict access to your IP |
-| EC2 `t3.micro` | Jenkins server (Docker) |
-| EC2 `t3.micro` | Application server |
-| Key pair | Auto-generated SSH keys |
+| EC2 `t3.micro`  | Jenkins server (Docker)    |
+| EC2 `t3.micro`  | Application server         |
+| Key pair        | Auto-generated SSH keys    |
 
 ## Prerequisites
 
@@ -67,22 +67,23 @@ sudo docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
 
 Open `http://<JENKINS_IP>:8080`, complete setup, then install these plugins:
 
-| Plugin | Purpose |
-|--------|---------|
+| Plugin          | Purpose                       |
+| --------------- | ----------------------------- |
 | Docker Pipeline | Docker build/push in pipeline |
-| SSH Agent | SSH deploy step |
-| NodeJS | Manage Node.js tool |
+| SSH Agent       | SSH deploy step               |
+| NodeJS          | Manage Node.js tool           |
 
 ### 4. Add Jenkins Credentials
 
-| ID | Kind | Value |
-|----|------|-------|
-| `registry_creds` | Username + password | Docker Hub username & access token |
-| `ec2_ssh` | SSH private key | Contents of the generated `.pem` file |
+| ID               | Kind                | Value                                 |
+| ---------------- | ------------------- | ------------------------------------- |
+| `registry_creds` | Username + password | Docker Hub username & access token    |
+| `ec2_ssh`        | SSH private key     | Contents of the generated `.pem` file |
 
 ### 5. Configure NodeJS Tool
 
 **Manage Jenkins → Tools → NodeJS → Add NodeJS**
+
 - Name: `nodejs-20`
 - Version: NodeJS 20.x
 
@@ -107,10 +108,10 @@ curl http://$APP_IP:5000/api/info  # version + deployment time
 **Successful Deployment:**
 
 ![Successful Pipeline](screenshots/successful_pipeline.png)
-*Jenkins pipeline completed successfully with all stages passing*
+_Jenkins pipeline completed successfully with all stages passing_
 
 ![Application Running](screenshots/successfull_app_deployment_site.png)
-*Interactive timesheet application deployed and accessible*
+_Interactive todo list application deployed and accessible_
 
 ## Project Structure
 
@@ -141,25 +142,27 @@ curl http://$APP_IP:5000/api/info  # version + deployment time
 
 Key variables in `terraform.tfvars`:
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `aws_region` | AWS region | `us-east-1` |
-| `project_name` | Resource name prefix | `cicd-pipeline` |
-| `allowed_ips` | IPs allowed for SSH/Jenkins | `["0.0.0.0/0"]` — **change this** |
-| `jenkins_instance_type` | Jenkins EC2 size | `t3.medium` |
-| `app_instance_type` | App EC2 size | `t3.small` |
-| `jenkins_admin_password` | Jenkins password | — (required) |
+| Variable                 | Description                 | Default                           |
+| ------------------------ | --------------------------- | --------------------------------- |
+| `aws_region`             | AWS region                  | `us-east-1`                       |
+| `project_name`           | Resource name prefix        | `cicd-pipeline`                   |
+| `allowed_ips`            | IPs allowed for SSH/Jenkins | `["0.0.0.0/0"]` — **change this** |
+| `jenkins_instance_type`  | Jenkins EC2 size            | `t3.medium`                       |
+| `app_instance_type`      | App EC2 size                | `t3.small`                        |
+| `jenkins_admin_password` | Jenkins password            | — (required)                      |
 
 ## Troubleshooting
 
 ### Common Issues & Resolutions
 
 #### 1. Terraform Circular Dependency Error
+
 **Error**: `Error: Cycle: module.security_groups.aws_security_group.app, module.security_groups.aws_security_group.jenkins`
 
 **Cause**: Security groups referencing each other in inline rules
 
 **Fix**: Use separate `aws_security_group_rule` resources instead of inline rules:
+
 ```hcl
 resource "aws_security_group_rule" "jenkins_to_app" {
   type                     = "egress"
@@ -172,16 +175,21 @@ resource "aws_security_group_rule" "jenkins_to_app" {
 ```
 
 #### 2. Docker-in-Docker Connection Failed
+
 **Error**: `failed to connect to the docker API at tcp://docker:2376: lookup docker on 127.0.0.11:53: no such host`
 
 **Cause**: Jenkins container can't reach Docker-in-Docker (DinD) container
 
-**Fix**: 
+**Fix**:
+
 1. Ensure both containers are on the same network:
+
 ```bash
 sudo docker network inspect jenkins
 ```
+
 2. Restart DinD container if missing:
+
 ```bash
 sudo docker run --name jenkins-docker --rm --detach \
   --privileged --network jenkins --network-alias docker \
@@ -191,27 +199,33 @@ sudo docker run --name jenkins-docker --rm --detach \
   --publish 2376:2376 \
   docker:dind --storage-driver overlay2
 ```
+
 3. Verify connection:
+
 ```bash
 sudo docker exec jenkins-blueocean docker ps
 ```
 
 #### 3. Java Installation Failed on Amazon Linux 2
+
 **Error**: `Topic corretto21 is not found`
 
 **Cause**: `amazon-linux-extras` doesn't have Java 21
 
 **Fix**: Install directly via yum:
+
 ```bash
 sudo yum install -y java-21-amazon-corretto-devel
 ```
 
 #### 4. SSH Agent Plugin Missing
+
 **Error**: `No such DSL method 'sshagent' found`
 
 **Cause**: SSH Agent plugin not installed
 
 **Fix**: Use `withCredentials` instead:
+
 ```groovy
 withCredentials([sshUserPrivateKey(credentialsId: 'ec2_ssh', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
     sh 'ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SSH_USER@${EC2_HOST} "commands"'
@@ -219,29 +233,36 @@ withCredentials([sshUserPrivateKey(credentialsId: 'ec2_ssh', keyFileVariable: 'S
 ```
 
 #### 5. SSH Connection Timeout Between Instances
+
 **Error**: `ssh: connect to host 18.196.224.159 port 22: Connection timed out`
 
 **Cause**: Using public IP for inter-VPC communication
 
 **Fix**: Use private IP instead:
+
 1. Add private IP output in `terraform/outputs.tf`:
+
 ```hcl
 output "app_server_private_ip" {
   value = module.app_server.private_ip
 }
 ```
+
 2. Use private IP in Jenkins build parameter:
+
 ```bash
 terraform output app_server_private_ip
 # Use this IP (e.g., 10.0.1.x) instead of public IP
 ```
 
 #### 6. Jenkins Performance Issues
+
 **Problem**: Jenkins UI slow, builds timing out
 
 **Cause**: t3.micro (1 vCPU, 1GB RAM) insufficient for Jenkins + Docker
 
 **Fix**: Upgrade to t3.small or t3.medium:
+
 ```hcl
 # terraform.tfvars
 jenkins_instance_type = "t3.small"  # 2 vCPU, 2GB RAM
@@ -249,14 +270,14 @@ jenkins_instance_type = "t3.small"  # 2 vCPU, 2GB RAM
 
 ### Quick Diagnostics
 
-| Problem | Command |
-|---------|---------|
-| Jenkins container not running | `sudo docker ps -a && sudo docker logs jenkins` |
-| Initial password not found | Container still starting — wait 30s, retry |
+| Problem                                 | Command                                                              |
+| --------------------------------------- | -------------------------------------------------------------------- |
+| Jenkins container not running           | `sudo docker ps -a && sudo docker logs jenkins`                      |
+| Initial password not found              | Container still starting — wait 30s, retry                           |
 | `docker: command not found` in pipeline | Docker CLI missing in container — check `/var/log/jenkins-setup.log` |
-| SSH deploy: permission denied | Verify `ec2_ssh` credential has full `.pem` contents |
-| `npm: command not found` | Ensure NodeJS plugin installed + `nodejs-20` tool configured |
-| App not responding after deploy | `ssh ec2-user@<APP_IP> "docker ps && docker logs node-app"` |
+| SSH deploy: permission denied           | Verify `ec2_ssh` credential has full `.pem` contents                 |
+| `npm: command not found`                | Ensure NodeJS plugin installed + `nodejs-20` tool configured         |
+| App not responding after deploy         | `ssh ec2-user@<APP_IP> "docker ps && docker logs node-app"`          |
 
 See [RUNBOOK.md](RUNBOOK.md) for comprehensive troubleshooting.
 
