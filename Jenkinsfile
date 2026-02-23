@@ -43,6 +43,17 @@ pipeline {
             }
         }
         
+        stage('Security Scan - Dependencies') {
+            steps {
+                echo 'Scanning dependencies for vulnerabilities...'
+                sh '''
+                    npm audit --audit-level=moderate || true
+                    npm audit --json > npm-audit-report.json || true
+                '''
+                archiveArtifacts artifacts: 'npm-audit-report.json', allowEmptyArchive: true
+            }
+        }
+        
         stage('Docker Build') {
             steps {
                 echo 'Building Docker image...'
@@ -53,11 +64,35 @@ pipeline {
             }
         }
         
+        stage('Security Scan - Docker Image') {
+            steps {
+                echo 'Scanning Docker image for vulnerabilities...'
+                sh '''
+                    docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+                        aquasec/trivy:latest image \
+                        --severity HIGH,CRITICAL \
+                        --no-progress \
+                        --format json \
+                        --output trivy-report.json \
+                        ${DOCKER_IMAGE}:${DOCKER_TAG} || true
+                    
+                    docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+                        aquasec/trivy:latest image \
+                        --severity HIGH,CRITICAL \
+                        --no-progress \
+                        ${DOCKER_IMAGE}:${DOCKER_TAG} || true
+                '''
+                archiveArtifacts artifacts: 'trivy-report.json', allowEmptyArchive: true
+            }
+        }
+        
         stage('Push Image') {
             steps {
                 echo 'Pushing image to registry...'
                 sh '''
-                    echo $REGISTRY_CREDS_PSW | docker login -u $REGISTRY_CREDS_USR --password-stdin
+                    set +x
+                    echo $REGISTRY_CREDS_PSW | docker login -u $REGISTRY_CREDS_USR --password-stdin 2>&1 | grep -v "WARNING"
+                    set -x
                     docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} $REGISTRY_CREDS_USR/${DOCKER_IMAGE}:${DOCKER_TAG}
                     docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} $REGISTRY_CREDS_USR/${DOCKER_IMAGE}:latest
                     docker push $REGISTRY_CREDS_USR/${DOCKER_IMAGE}:${DOCKER_TAG}
@@ -74,15 +109,14 @@ pipeline {
                 echo 'Deploying to EC2...'
                 withCredentials([sshUserPrivateKey(credentialsId: 'ec2_ssh', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
                     sh '''
-                        echo "Using SSH key: $SSH_KEY"
-                        echo "SSH user: $SSH_USER"
-                        ls -la "$SSH_KEY" || echo "Key file not found at path"
+                        set +x
+                        echo "Deploying to EC2..."
                         
-                        ssh -v -i "$SSH_KEY" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $SSH_USER@${EC2_HOST} << 'EOF'
-                            echo "Connected to EC2 successfully"
+                        ssh -i "$SSH_KEY" -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR $SSH_USER@${EC2_HOST} << 'EOF'
+                            set +x
                             docker stop ${CONTAINER_NAME} || true
                             docker rm ${CONTAINER_NAME} || true
-                            echo "$REGISTRY_CREDS_PSW" | docker login -u "$REGISTRY_CREDS_USR" --password-stdin
+                            echo "$REGISTRY_CREDS_PSW" | docker login -u "$REGISTRY_CREDS_USR" --password-stdin 2>&1 | grep -v "WARNING" || true
                             docker pull $REGISTRY_CREDS_USR/${DOCKER_IMAGE}:latest
                             docker run -d --name ${CONTAINER_NAME} -p 5000:5000 $REGISTRY_CREDS_USR/${DOCKER_IMAGE}:latest
                             docker ps

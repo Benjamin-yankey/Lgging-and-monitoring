@@ -12,6 +12,13 @@ resource "aws_instance" "app_server" {
     encrypted   = true
   }
 
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 1
+    instance_metadata_tags      = "enabled"
+  }
+
   tags = {
     Name        = "${var.project_name}-${var.environment}-${var.name}"
     Project     = var.project_name

@@ -1,5 +1,10 @@
 const express = require("express");
 const client = require("prom-client");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
+const { body, param, validationResult } = require("express-validator");
+const cors = require("cors");
+const xss = require("xss");
 const app = express();
 
 const deploymentTime = new Date().toISOString();
@@ -125,7 +130,48 @@ const httpRequestsInFlight = new client.Gauge({
 const todos = [];
 let requestCount = 0;
 
-app.use(express.json());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+    },
+  },
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true,
+  },
+}));
+
+app.use(cors({
+  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:5000'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true,
+  maxAge: 86400,
+}));
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const strictLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use('/api/', limiter);
+
+app.use(express.json({ limit: '10kb' }));
+app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 app.use(express.static("public"));
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
@@ -420,18 +466,25 @@ app.get("/api/todos", (req, res) => {
   });
 });
 
-app.post("/api/todos", (req, res) => {
-  const { task, category, priority } = req.body;
-
-  // Validate input
-  if (!task || !category) {
-    return res
-      .status(400)
-      .json({ success: false, error: "Missing required fields" });
+app.post("/api/todos", [
+  body('task').trim().notEmpty().isLength({ max: 500 }).withMessage('Task is required and must be less than 500 characters'),
+  body('category').trim().notEmpty().isIn(['work', 'personal', 'shopping', 'health', 'other']).withMessage('Invalid category'),
+  body('priority').optional().isIn(['low', 'medium', 'high']).withMessage('Invalid priority'),
+  body('dueDate').optional().isISO8601().toDate().withMessage('Invalid due date'),
+  strictLimiter,
+], (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ success: false, errors: errors.array() });
   }
 
+  const { task, category, priority, dueDate } = req.body;
+
   const entry = {
-    ...req.body,
+    task: xss(task),
+    category: xss(category),
+    priority: priority || 'low',
+    dueDate: dueDate || null,
     completed: false,
     timestamp: new Date().toISOString(),
     id: Date.now(),
@@ -449,7 +502,14 @@ app.post("/api/todos", (req, res) => {
   res.json({ success: true, entry });
 });
 
-app.put("/api/todos/:id/toggle", (req, res) => {
+app.put("/api/todos/:id/toggle", [
+  param('id').isInt({ min: 1 }).withMessage('Invalid todo ID'),
+], (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ success: false, errors: errors.array() });
+  }
+
   const id = parseInt(req.params.id);
   const todo = todos.find((t) => t.id === id);
 
@@ -474,7 +534,15 @@ app.put("/api/todos/:id/toggle", (req, res) => {
   res.json({ success: true, todo });
 });
 
-app.delete("/api/todos/:id", (req, res) => {
+app.delete("/api/todos/:id", [
+  param('id').isInt({ min: 1 }).withMessage('Invalid todo ID'),
+  strictLimiter,
+], (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ success: false, errors: errors.array() });
+  }
+
   const id = parseInt(req.params.id);
   const index = todos.findIndex((t) => t.id === id);
 

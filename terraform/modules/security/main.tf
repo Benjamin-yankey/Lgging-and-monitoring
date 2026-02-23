@@ -75,15 +75,6 @@ resource "aws_security_group" "app" {
     cidr_blocks = var.allowed_ips
   }
 
-  # Allow SSH from anywhere for Jenkins deployment (can be restricted later)
-  ingress {
-    description = "SSH from Jenkins"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
   ingress {
     description = "Application Port"
     from_port   = 5000
