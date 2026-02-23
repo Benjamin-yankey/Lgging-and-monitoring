@@ -59,11 +59,20 @@ resource "aws_security_group" "app" {
   vpc_id      = var.vpc_id
 
   ingress {
-    description = "SSH"
+    description = "SSH from allowed IPs"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
     cidr_blocks = var.allowed_ips
+  }
+
+  # Allow SSH from anywhere for Jenkins deployment (can be restricted later)
+  ingress {
+    description = "SSH from Jenkins"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
@@ -198,7 +207,7 @@ resource "aws_security_group" "monitoring" {
 
 # ── Cross-SG rules (separate resources to avoid circular dependency) ──────
 
-# Jenkins → App SSH
+# Jenkins → App SSH (egress from Jenkins SG to App SG)
 resource "aws_security_group_rule" "jenkins_to_app" {
   type                     = "egress"
   from_port                = 22
