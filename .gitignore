@@ -1,0 +1,65 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+
+# Terraform
+*.tfstate
+*.tfstate.*
+*.tfvars
+.terraform/
+.terraform.lock.hcl
+
+# SSH Keys
+*.pem
+*.pub
+*.key
+
+# AWS
+.aws/
+credentials
+config
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.eslintcache
+
+# Build outputs
+dist/
+build/
+*.tgz
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Infrastructure outputs (contains dynamic IPs)
+infrastructure-outputs.txt
+
+# OS
+Thumbs.db

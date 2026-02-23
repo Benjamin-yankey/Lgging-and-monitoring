@@ -1,0 +1,89 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Monitoring stack: Prometheus · Alertmanager · Grafana · Node Exporter
+#
+# Required env vars (set in .env or export before running docker-compose):
+#   APP_SERVER_IP        – public/private IP of the Node.js app server
+#   GRAFANA_ADMIN_PASSWORD – Grafana admin password (default: admin)
+#
+# Local dev quick-start:
+#   cp .env.example .env   # then fill in APP_SERVER_IP
+#   docker-compose up -d
+# ─────────────────────────────────────────────────────────────────────────────
+version: '3.8'
+
+services:
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    environment:
+      - APP_SERVER_IP=${APP_SERVER_IP:-localhost}
+    volumes:
+      # prometheus.yml is mounted as a template; the entrypoint does sed substitution
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml.tpl:ro
+      - ./alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+      - prometheus-data:/prometheus
+    # sed replaces APP_SERVER_IP_PLACEHOLDER with the value of $APP_SERVER_IP
+    # then hands off to the real prometheus binary
+    entrypoint:
+      - /bin/sh
+      - -c
+      - 'sed "s/APP_SERVER_IP_PLACEHOLDER/$${APP_SERVER_IP:-localhost}/g" /etc/prometheus/prometheus.yml.tpl > /etc/prometheus/prometheus.yml && exec /bin/prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus --web.console.libraries=/etc/prometheus/console_libraries --web.console.templates=/etc/prometheus/consoles --web.enable-lifecycle'
+    restart: unless-stopped
+    depends_on:
+      - alertmanager
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.listen-address=:9093'
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_ALERTING_ENABLED=true
+      - GF_UNIFIED_ALERTING_ENABLED=true
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana-dashboards/dashboard.yml:/etc/grafana/provisioning/dashboards/dashboard.yml:ro
+      - ./grafana-dashboards/nodejs-dashboard.json:/var/lib/grafana/dashboards/nodejs-dashboard.json:ro
+      - ./grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    restart: unless-stopped
+
+volumes:
+  prometheus-data:
+  grafana-data:
+  alertmanager-data:

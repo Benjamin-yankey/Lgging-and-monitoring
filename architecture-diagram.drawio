@@ -1,0 +1,263 @@
+<mxfile host="65bd71144e">
+    <diagram name="CI/CD Pipeline Architecture" id="cicd-architecture">
+        <mxGraphModel dx="183" dy="305" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="aws-cloud" value="" style="points=[[0,0],[0.25,0],[0.5,0],[0.75,0],[1,0],[1,0.25],[1,0.5],[1,0.75],[1,1],[0.75,1],[0.5,1],[0.25,1],[0,1],[0,0.75],[0,0.5],[0,0.25]];outlineConnect=0;gradientColor=none;html=1;whiteSpace=wrap;fontSize=12;fontStyle=0;container=1;pointerEvents=0;collapsible=0;recursiveResize=0;shape=mxgraph.aws4.group;grIcon=mxgraph.aws4.group_aws_cloud_alt;strokeColor=#232F3E;fillColor=none;verticalAlign=top;align=left;spacingLeft=30;fontColor=#232F3E;dashed=0;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="40" width="1300" height="820" as="geometry"/>
+                </mxCell>
+                <mxCell id="aws-cloud-label" value="AWS Cloud" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=16;fontColor=#232F3E;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="50" width="120" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="region" value="" style="points=[[0,0],[0.25,0],[0.5,0],[0.75,0],[1,0],[1,0.25],[1,0.5],[1,0.75],[1,1],[0.75,1],[0.5,1],[0.25,1],[0,1],[0,0.75],[0,0.5],[0,0.25]];outlineConnect=0;gradientColor=none;html=1;whiteSpace=wrap;fontSize=12;fontStyle=0;container=1;pointerEvents=0;collapsible=0;recursiveResize=0;shape=mxgraph.aws4.group;grIcon=mxgraph.aws4.group_region;strokeColor=#147EBA;fillColor=none;verticalAlign=top;align=left;spacingLeft=30;fontColor=#147EBA;dashed=1;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="90" width="1260" height="750" as="geometry"/>
+                </mxCell>
+                <mxCell id="region-label" value="AWS Region (us-east-1)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=14;fontColor=#147EBA;" parent="1" vertex="1">
+                    <mxGeometry x="80" y="100" width="180" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="vpc" value="" style="points=[[0,0],[0.25,0],[0.5,0],[0.75,0],[1,0],[1,0.25],[1,0.5],[1,0.75],[1,1],[0.75,1],[0.5,1],[0.25,1],[0,1],[0,0.75],[0,0.5],[0,0.25]];outlineConnect=0;gradientColor=none;html=1;whiteSpace=wrap;fontSize=12;fontStyle=0;container=1;pointerEvents=0;collapsible=0;recursiveResize=0;shape=mxgraph.aws4.group;grIcon=mxgraph.aws4.group_vpc;strokeColor=#248814;fillColor=none;verticalAlign=top;align=left;spacingLeft=30;fontColor=#248814;dashed=0;" parent="1" vertex="1">
+                    <mxGeometry x="80" y="140" width="1220" height="680" as="geometry"/>
+                </mxCell>
+                <mxCell id="github" value="GitHub&#xa;Repository" style="shape=image;html=1;verticalAlign=top;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;imageAspect=0;aspect=fixed;image=https://cdn.worldvectorlogo.com/logos/github-icon-1.svg;fontColor=#232F3E;fontSize=12;" parent="vpc" vertex="1">
+                    <mxGeometry x="50" y="45" width="60" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="vpc-label" value="VPC (10.0.0.0/16)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=14;fontColor=#248814;" parent="1" vertex="1">
+                    <mxGeometry x="100" y="150" width="160" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="igw" value="Internet&#xa;Gateway" style="sketch=0;points=[[0,0,0],[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0,0],[0,1,0],[0.25,1,0],[0.5,1,0],[0.75,1,0],[1,1,0],[0,0.25,0],[0,0.5,0],[0,0.75,0],[1,0.25,0],[1,0.5,0],[1,0.75,0]];outlineConnect=0;fontColor=#232F3E;gradientColor=#945DF2;gradientDirection=north;fillColor=#5A30B5;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.internet_gateway;" parent="1" vertex="1">
+                    <mxGeometry x="640" y="180" width="70" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="public-subnet-1" value="" style="points=[[0,0],[0.25,0],[0.5,0],[0.75,0],[1,0],[1,0.25],[1,0.5],[1,0.75],[1,1],[0.75,1],[0.5,1],[0.25,1],[0,1],[0,0.75],[0,0.5],[0,0.25]];outlineConnect=0;gradientColor=none;html=1;whiteSpace=wrap;fontSize=12;fontStyle=0;container=1;pointerEvents=0;collapsible=0;recursiveResize=0;shape=mxgraph.aws4.group;grIcon=mxgraph.aws4.group_security_group;grStroke=0;strokeColor=#248814;fillColor=#E9F3E6;verticalAlign=top;align=left;spacingLeft=30;fontColor=#248814;dashed=0;" parent="1" vertex="1">
+                    <mxGeometry x="120" y="290" width="530" height="500" as="geometry"/>
+                </mxCell>
+                <mxCell id="public-subnet-1-label" value="Public Subnet 1 (10.0.1.0/24)&#xa;Availability Zone A" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=12;fontColor=#248814;" parent="1" vertex="1">
+                    <mxGeometry x="140" y="300" width="220" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="public-subnet-2" value="" style="points=[[0,0],[0.25,0],[0.5,0],[0.75,0],[1,0],[1,0.25],[1,0.5],[1,0.75],[1,1],[0.75,1],[0.5,1],[0.25,1],[0,1],[0,0.75],[0,0.5],[0,0.25]];outlineConnect=0;gradientColor=none;html=1;whiteSpace=wrap;fontSize=12;fontStyle=0;container=1;pointerEvents=0;collapsible=0;recursiveResize=0;shape=mxgraph.aws4.group;grIcon=mxgraph.aws4.group_security_group;grStroke=0;strokeColor=#248814;fillColor=#E9F3E6;verticalAlign=top;align=left;spacingLeft=30;fontColor=#248814;dashed=0;" parent="1" vertex="1">
+                    <mxGeometry x="680" y="290" width="530" height="500" as="geometry"/>
+                </mxCell>
+                <mxCell id="public-subnet-2-label" value="Public Subnet 2 (10.0.2.0/24)&#xa;Availability Zone B" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=12;fontColor=#248814;" parent="1" vertex="1">
+                    <mxGeometry x="700" y="300" width="220" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="jenkins-sg" value="" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;dashPattern=5 5;strokeColor=#DD3522;fillColor=none;strokeWidth=2;" parent="1" vertex="1">
+                    <mxGeometry x="160" y="360" width="450" height="400" as="geometry"/>
+                </mxCell>
+                <mxCell id="jenkins-sg-label" value="Jenkins Security Group&#xa;Inbound: SSH (22), Jenkins UI (8080)&#xa;Outbound: All Traffic" style="text;html=1;strokeColor=none;fillColor=#FFE6E6;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontStyle=0;fontSize=11;fontColor=#DD3522;" parent="1" vertex="1">
+                    <mxGeometry x="180" y="370" width="200" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="jenkins-ec2" value="Jenkins Server&#xa;(EC2 - t3.micro)&#xa;Amazon Linux 2" style="sketch=0;points=[[0,0,0],[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0,0],[0,1,0],[0.25,1,0],[0.5,1,0],[0.75,1,0],[1,1,0],[0,0.25,0],[0,0.5,0],[0,0.75,0],[1,0.25,0],[1,0.5,0],[1,0.75,0]];outlineConnect=0;fontColor=#232F3E;gradientColor=#F78E04;gradientDirection=north;fillColor=#D05C17;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.ec2;" parent="1" vertex="1">
+                    <mxGeometry x="320" y="500" width="80" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="elastic-ip" value="Elastic IP" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#F78E04;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.elastic_ip_address;" parent="1" vertex="1">
+                    <mxGeometry x="340" y="440" width="40" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="jenkins-components" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1976D2;" parent="1" vertex="1">
+                    <mxGeometry x="200" y="620" width="370" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="jenkins-components-label" value="Jenkins Components" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=12;fontColor=#1976D2;" parent="1" vertex="1">
+                    <mxGeometry x="300" y="625" width="150" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="docker" value="Docker" style="shape=image;html=1;verticalAlign=top;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;imageAspect=0;aspect=fixed;image=https://cdn.worldvectorlogo.com/logos/docker-4.svg;fontColor=#232F3E;fontSize=11;" parent="1" vertex="1">
+                    <mxGeometry x="220" y="655" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="git" value="Git" style="shape=image;html=1;verticalAlign=top;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;imageAspect=0;aspect=fixed;image=https://cdn.worldvectorlogo.com/logos/git-icon.svg;fontColor=#232F3E;fontSize=11;" parent="1" vertex="1">
+                    <mxGeometry x="290" y="655" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="jenkins-icon" value="Jenkins" style="shape=image;html=1;verticalAlign=top;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;imageAspect=0;aspect=fixed;image=https://cdn.worldvectorlogo.com/logos/jenkins-1.svg;fontColor=#232F3E;fontSize=11;" parent="1" vertex="1">
+                    <mxGeometry x="360" y="655" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="nodejs" value="Node.js" style="shape=image;html=1;verticalAlign=top;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;imageAspect=0;aspect=fixed;image=https://cdn.worldvectorlogo.com/logos/nodejs-icon.svg;fontColor=#232F3E;fontSize=11;" parent="1" vertex="1">
+                    <mxGeometry x="430" y="655" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="ebs-jenkins" value="EBS Volume&#xa;20GB gp3&#xa;Encrypted" style="sketch=0;points=[[0,0,0],[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0,0],[0,1,0],[0.25,1,0],[0.5,1,0],[0.75,1,0],[1,1,0],[0,0.25,0],[0,0.5,0],[0,0.75,0],[1,0.25,0],[1,0.5,0],[1,0.75,0]];outlineConnect=0;fontColor=#232F3E;gradientColor=#60A337;gradientDirection=north;fillColor=#3F8624;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.elastic_block_store;" parent="1" vertex="1">
+                    <mxGeometry x="450" y="500" width="60" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="app-sg" value="" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;dashPattern=5 5;strokeColor=#0066CC;fillColor=none;strokeWidth=2;" parent="1" vertex="1">
+                    <mxGeometry x="720" y="360" width="450" height="400" as="geometry"/>
+                </mxCell>
+                <mxCell id="app-sg-label" value="App Security Group&#xa;Inbound: SSH (22), App Port (5000)&#xa;Inbound: SSH from Jenkins SG&#xa;Outbound: All Traffic" style="text;html=1;strokeColor=none;fillColor=#E6F0FF;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontStyle=0;fontSize=11;fontColor=#0066CC;" parent="1" vertex="1">
+                    <mxGeometry x="740" y="370" width="210" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="app-ec2" value="App Server&#xa;(EC2 - t3.micro)&#xa;Amazon Linux 2" style="sketch=0;points=[[0,0,0],[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0,0],[0,1,0],[0.25,1,0],[0.5,1,0],[0.75,1,0],[1,1,0],[0,0.25,0],[0,0.5,0],[0,0.75,0],[1,0.25,0],[1,0.5,0],[1,0.75,0]];outlineConnect=0;fontColor=#232F3E;gradientColor=#F78E04;gradientDirection=north;fillColor=#D05C17;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.ec2;" parent="1" vertex="1">
+                    <mxGeometry x="890" y="500" width="80" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="app-components" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#7B1FA2;" parent="1" vertex="1">
+                    <mxGeometry x="770" y="620" width="350" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="app-components-label" value="Application Components" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=12;fontColor=#7B1FA2;" parent="1" vertex="1">
+                    <mxGeometry x="850" y="625" width="180" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="docker-app" value="Docker" style="shape=image;html=1;verticalAlign=top;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;imageAspect=0;aspect=fixed;image=https://cdn.worldvectorlogo.com/logos/docker-4.svg;fontColor=#232F3E;fontSize=11;" parent="1" vertex="1">
+                    <mxGeometry x="810" y="655" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="node-app" value="Node.js App" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#68A063;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=0;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.container_1;" parent="1" vertex="1">
+                    <mxGeometry x="890" y="655" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="port-5000" value="Port 5000" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFECB3;strokeColor=#FF8F00;fontColor=#232F3E;fontSize=11;" parent="1" vertex="1">
+                    <mxGeometry x="970" y="665" width="70" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="users" value="Users/&#xa;Internet" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#232F3D;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.users;" parent="1" vertex="1">
+                    <mxGeometry x="640" y="10" width="70" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="dockerhub" value="Docker Hub&#xa;Registry" style="shape=image;html=1;verticalAlign=top;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;imageAspect=0;aspect=fixed;image=https://cdn.worldvectorlogo.com/logos/docker-4.svg;fontColor=#232F3E;fontSize=12;" parent="1" vertex="1">
+                    <mxGeometry x="1200" y="160" width="60" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="keypair" value="EC2 Key Pair&#xa;(SSH Access)" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#DD344C;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=0;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.key_pair;" parent="1" vertex="1">
+                    <mxGeometry x="1230" y="360" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="route-table" value="Public Route Table&#xa;0.0.0.0/0 → IGW" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#5A30B5;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=0;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.route_table;" parent="1" vertex="1">
+                    <mxGeometry x="1230" y="450" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="conn-users-igw" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;strokeColor=#232F3E;strokeWidth=2;rounded=0;" parent="1" source="users" target="igw" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="conn-igw-jenkins" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;strokeColor=#D05C17;strokeWidth=2;rounded=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;exitX=0;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;" parent="1" source="igw" target="elastic-ip" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="600" y="215"/>
+                            <mxPoint x="600" y="280"/>
+                            <mxPoint x="360" y="280"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="label-8080" value="Port 8080" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontColor=#D05C17;fontSize=10;fontStyle=1;" parent="conn-igw-jenkins" vertex="1" connectable="0">
+                    <mxGeometry x="-0.3" y="1" relative="1" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="conn-igw-app" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;strokeColor=#0066CC;strokeWidth=2;rounded=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;" parent="1" source="igw" target="app-ec2" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="750" y="215"/>
+                            <mxPoint x="750" y="280"/>
+                            <mxPoint x="930" y="280"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="label-5000" value="Port 5000" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontColor=#0066CC;fontSize=10;fontStyle=1;" parent="conn-igw-app" vertex="1" connectable="0">
+                    <mxGeometry x="-0.3" y="-1" relative="1" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="conn-eip-jenkins" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;strokeColor=#F78E04;strokeWidth=2;rounded=0;" parent="1" source="elastic-ip" target="jenkins-ec2" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="conn-jenkins-ebs" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;strokeColor=#3F8624;strokeWidth=2;rounded=0;" parent="1" source="jenkins-ec2" target="ebs-jenkins" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="conn-jenkins-app" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;strokeColor=#9C27B0;strokeWidth=3;rounded=0;dashed=1;dashPattern=8 8;" parent="1" source="jenkins-ec2" target="app-ec2" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="360" y="600"/>
+                            <mxPoint x="660" y="600"/>
+                            <mxPoint x="660" y="540"/>
+                            <mxPoint x="890" y="540"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="label-ssh-deploy" value="SSH Deploy (Port 22)" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontColor=#9C27B0;fontSize=11;fontStyle=1;fillColor=#ffffff;" parent="conn-jenkins-app" vertex="1" connectable="0">
+                    <mxGeometry x="-0.1" y="1" relative="1" as="geometry">
+                        <mxPoint y="-15" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="conn-github-jenkins" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;strokeColor=#24292E;strokeWidth=2;rounded=0;" parent="1" source="github" target="jenkins-ec2" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="160" y="450"/>
+                            <mxPoint x="160" y="540"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="label-git" value="Git Clone/Pull" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontColor=#24292E;fontSize=10;fontStyle=1;" parent="conn-github-jenkins" vertex="1" connectable="0">
+                    <mxGeometry x="0.1" y="1" relative="1" as="geometry">
+                        <mxPoint x="28" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="conn-jenkins-docker" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;strokeColor=#2496ED;strokeWidth=2;rounded=0;exitX=1;exitY=0;exitDx=0;exitDy=0;exitPerimeter=0;" parent="1" source="jenkins-ec2" target="dockerhub" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="550" y="500"/>
+                            <mxPoint x="550" y="190"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="label-push" value="Push Image" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontColor=#2496ED;fontSize=10;fontStyle=1;" parent="conn-jenkins-docker" vertex="1" connectable="0">
+                    <mxGeometry x="-0.5" y="1" relative="1" as="geometry">
+                        <mxPoint x="-70" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="conn-docker-app" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;strokeColor=#2496ED;strokeWidth=2;rounded=0;entryX=1;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" source="dockerhub" target="app-ec2" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1100" y="190"/>
+                            <mxPoint x="1100" y="500"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="label-pull" value="Pull Image" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontColor=#2496ED;fontSize=10;fontStyle=1;" parent="conn-docker-app" vertex="1" connectable="0">
+                    <mxGeometry x="-0.3" y="-1" relative="1" as="geometry">
+                        <mxPoint x="30" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="legend" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#BDBDBD;" parent="1" vertex="1">
+                    <mxGeometry x="1230" y="530" width="90" height="260" as="geometry"/>
+                </mxCell>
+                <mxCell id="legend-title" value="Legend" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=12;fontColor=#424242;" parent="1" vertex="1">
+                    <mxGeometry x="1245" y="540" width="60" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="legend-vpc-icon" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#248814;strokeWidth=2;" parent="1" vertex="1">
+                    <mxGeometry x="1240" y="570" width="20" height="15" as="geometry"/>
+                </mxCell>
+                <mxCell id="legend-vpc-text" value="VPC" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontColor=#424242;" parent="1" vertex="1">
+                    <mxGeometry x="1265" y="567" width="50" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="legend-subnet-icon" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E9F3E6;strokeColor=#248814;strokeWidth=1;" parent="1" vertex="1">
+                    <mxGeometry x="1240" y="595" width="20" height="15" as="geometry"/>
+                </mxCell>
+                <mxCell id="legend-subnet-text" value="Subnet" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontColor=#424242;" parent="1" vertex="1">
+                    <mxGeometry x="1265" y="592" width="50" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="legend-jenkins-sg-icon" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#DD3522;strokeWidth=2;dashed=1;" parent="1" vertex="1">
+                    <mxGeometry x="1240" y="620" width="20" height="15" as="geometry"/>
+                </mxCell>
+                <mxCell id="legend-jenkins-sg-text" value="Jenkins SG" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontColor=#424242;" parent="1" vertex="1">
+                    <mxGeometry x="1265" y="617" width="55" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="legend-app-sg-icon" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#0066CC;strokeWidth=2;dashed=1;" parent="1" vertex="1">
+                    <mxGeometry x="1240" y="645" width="20" height="15" as="geometry"/>
+                </mxCell>
+                <mxCell id="legend-app-sg-text" value="App SG" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontColor=#424242;" parent="1" vertex="1">
+                    <mxGeometry x="1265" y="642" width="50" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="legend-traffic-icon" value="" style="endArrow=classic;html=1;strokeColor=#232F3E;strokeWidth=2;" parent="1" edge="1">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="1240" y="680" as="sourcePoint"/>
+                        <mxPoint x="1260" y="680" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="legend-traffic-text" value="Traffic" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontColor=#424242;" parent="1" vertex="1">
+                    <mxGeometry x="1265" y="670" width="50" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="legend-deploy-icon" value="" style="endArrow=classic;html=1;strokeColor=#9C27B0;strokeWidth=2;dashed=1;" parent="1" edge="1">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="1240" y="705" as="sourcePoint"/>
+                        <mxPoint x="1260" y="705" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="legend-deploy-text" value="Deploy" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontColor=#424242;" parent="1" vertex="1">
+                    <mxGeometry x="1265" y="695" width="50" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="cicd-title" value="Jenkins CI/CD Pipeline Architecture" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=20;fontColor=#1565C0;" parent="1" vertex="1">
+                    <mxGeometry x="450" y="850" width="400" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="flow-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#FF8F00;" parent="1" vertex="1">
+                    <mxGeometry x="100" y="810" width="1120" height="35" as="geometry"/>
+                </mxCell>
+                <mxCell id="flow-text" value="CI/CD Flow: 1) GitHub Webhook triggers Jenkins → 2) Jenkins builds &amp; tests → 3) Docker image pushed to Docker Hub → 4) SSH deployment to App Server → 5) Container runs on port 5000" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;fontStyle=1;fontColor=#E65100;" parent="1" vertex="1">
+                    <mxGeometry x="110" y="815" width="1100" height="25" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>
