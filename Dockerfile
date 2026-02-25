@@ -7,7 +7,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
-COPY --chown=nodejs:nodejs app.js .
+COPY --chown=nodejs:nodejs *.js .
 
 USER nodejs
 

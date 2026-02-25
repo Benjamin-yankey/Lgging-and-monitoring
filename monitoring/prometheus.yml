@@ -5,24 +5,24 @@ global:
 alerting:
   alertmanagers:
     - static_configs:
-        - targets: ['alertmanager:9093']
+        - targets: ['obs-alertmanager:9093']
 
 rule_files:
   - "alert_rules.yml"
 
 scrape_configs:
-  - job_name: 'prometheus'
+  - job_name: 'obs-prometheus'
     static_configs:
       - targets: ['localhost:9090']
 
   # APP_SERVER_IP_PLACEHOLDER is replaced at runtime:
   #   - EC2: monitoring-setup.sh writes the real IP via Terraform templatefile
   #   - Local dev: docker-compose entrypoint runs sed using APP_SERVER_IP env var
-  - job_name: 'node-app'
+  - job_name: 'obs-node-app'
     static_configs:
       - targets: ['APP_SERVER_IP_PLACEHOLDER:5000']
     metrics_path: '/metrics'
 
-  - job_name: 'node-exporter'
+  - job_name: 'obs-node-exporter'
     static_configs:
       - targets: ['APP_SERVER_IP_PLACEHOLDER:9100']

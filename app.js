@@ -1,3 +1,4 @@
+require("./tracing"); // Initialize OpenTelemetry
 const express = require("express");
 const client = require("prom-client");
 const helmet = require("helmet");
@@ -5,12 +6,15 @@ const rateLimit = require("express-rate-limit");
 const { body, param, validationResult } = require("express-validator");
 const cors = require("cors");
 const xss = require("xss");
+const { logInfo, logError } = require("./logger"); // Structured logging
 const app = express();
 
+// Deployment metadata for visibility in metrics and UI
 const deploymentTime = new Date().toISOString();
 const version = process.env.APP_VERSION || "1.0.0";
 
 // ─── Prometheus Setup ────────────────────────────────────────────────────────
+// The Registry is where all our metrics are collected for the /metrics endpoint
 const register = new client.Registry();
 
 // Adds: process_cpu_seconds_total, process_resident_memory_bytes,
@@ -18,7 +22,7 @@ const register = new client.Registry();
 //       nodejs_active_requests, nodejs_heap_size_*, nodejs_gc_duration_seconds
 client.collectDefaultMetrics({
   register,
-  labels: { app: "todo-app", version },
+  labels: { app: "obs-todo-app", version },
 });
 
 // ─── Existing Metrics ────────────────────────────────────────────────────────
@@ -174,13 +178,16 @@ app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 app.use(express.static("public"));
 
-// ─── Middleware ───────────────────────────────────────────────────────────────
+// ─── Observability Middleware ───────────────────────────────────────────────
+// This middleware runs on every request to track metrics and log traffic
 app.use((req, res, next) => {
   requestCount++;
   const timestamp = new Date().toISOString();
-  console.log(
-    `[${timestamp}] ${req.method} ${req.path} - Request #${requestCount}`,
-  );
+  logInfo(`${req.method} ${req.path} - Request #${requestCount}`, {
+    method: req.method,
+    path: req.path,
+    requestNum: requestCount
+  });
 
   const start = Date.now();
   const cpuStart = process.cpuUsage();
@@ -247,8 +254,10 @@ function updateTodoMetrics() {
 }
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
+
+// Root route: Serves the interactive Todo List frontend
 app.get("/", (req, res) => {
-  console.log("[INFO] Home page accessed");
+  logInfo("Home page accessed");
   res.send(`
 <!DOCTYPE html>
 <html>
@@ -455,7 +464,7 @@ app.get("/", (req, res) => {
 });
 
 app.get("/api/todos", (req, res) => {
-  console.log(`[INFO] Fetching todos - Total: ${todos.length}`);
+  logInfo("Fetching todos", { count: todos.length });
   const active = todos.filter((t) => !t.completed).length;
   const completed = todos.filter((t) => t.completed).length;
   res.json({
@@ -492,13 +501,15 @@ app.post("/api/todos", [
   todos.push(entry);
 
   // ── Record business metrics ──────────────────────────────────────────────
+  // These help us understand user behavior beyond just technical performance
   todoCreatedTotal.labels(priority || "low").inc();
   updateTodoMetrics();
   // ─────────────────────────────────────────────────────────────────────────
 
-  console.log(
-    `[SUCCESS] Todo created: ${task} (${priority} priority, ${category})`,
-  );
+  logInfo(`Todo created: ${task}`, {
+    priority: priority || "low",
+    category
+  });
   res.json({ success: true, entry });
 });
 
@@ -528,9 +539,9 @@ app.put("/api/todos/:id/toggle", [
   updateTodoMetrics();
   // ─────────────────────────────────────────────────────────────────────────
 
-  console.log(
-    `[SUCCESS] Todo toggled: ${todo.task} -> ${todo.completed ? "completed" : "active"}`,
-  );
+  logInfo(`Todo toggled: ${todo.task}`, {
+    completed: todo.completed
+  });
   res.json({ success: true, todo });
 });
 
@@ -557,12 +568,12 @@ app.delete("/api/todos/:id", [
   updateTodoMetrics();
   // ─────────────────────────────────────────────────────────────────────────
 
-  console.log(`[SUCCESS] Todo deleted: ${deleted.task}`);
+  logInfo(`Todo deleted: ${deleted.task}`);
   res.json({ success: true });
 });
 
 app.get("/api/info", (req, res) => {
-  console.log("[INFO] System info requested");
+  logInfo("System info requested");
   res.json({
     version,
     deploymentTime,
@@ -575,7 +586,7 @@ app.get("/api/info", (req, res) => {
 });
 
 app.get("/health", (req, res) => {
-  console.log("[HEALTH] Health check performed");
+  logInfo("Health check performed");
   res.status(200).json({
     status: "healthy",
     uptime: process.uptime(),
@@ -591,7 +602,7 @@ app.get("/metrics", async (req, res) => {
 if (require.main === module) {
   const port = process.env.PORT || 5000;
   app.listen(port, "0.0.0.0", () => {
-    console.log(`Server running on port ${port}`);
+    logInfo(`Server running on port ${port}`);
   });
 }
 

@@ -3,8 +3,8 @@ groups:
     interval: 30s
     rules:
       - alert: HighErrorRate
-        expr: (rate(http_errors_total[5m]) / rate(http_requests_total[5m])) > 0.05
-        for: 2m
+        expr: (rate(http_errors_total[10m]) / rate(http_requests_total[10m])) > 0.05
+        for: 10m
         labels:
           severity: critical
         annotations:
@@ -12,13 +12,13 @@ groups:
           description: "Error rate is {{ $value | humanizePercentage }} (threshold: 5%)"
 
       - alert: HighLatency
-        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1
-        for: 5m
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[10m])) > 0.3
+        for: 10m
         labels:
           severity: warning
         annotations:
           summary: "High latency detected"
-          description: "95th percentile latency is {{ $value }}s"
+          description: "95th percentile latency is {{ $value }}s (threshold: 300ms)"
 
       - alert: InstanceDown
         expr: up == 0

@@ -9,8 +9,8 @@ Automated CI/CD pipeline that provisions AWS infrastructure with Terraform, runs
 
 ```
 Developer  →  GitHub  →  Jenkins (EC2 · Docker)  →  Docker Hub  →  App Server (EC2)
-
-Pipeline stages:
+Observability: App → OTLP → Jaeger | App → /metrics → Prometheus → Grafana
+```
   1. Checkout                 – clone repo
   2. Install                  – npm ci
   3. Test                     – npm test (Jest)
@@ -237,7 +237,7 @@ Key variables in `terraform.tfvars`:
 | Variable                 | Description                 | Default                           |
 | ------------------------ | --------------------------- | --------------------------------- |
 | `aws_region`             | AWS region                  | `us-east-1`                       |
-| `project_name`           | Resource name prefix        | `cicd-pipeline`                   |
+| `project_name`           | Resource name prefix        | `obs-todo-pipeline`               |
 | `allowed_ips`            | IPs allowed for SSH/Jenkins | `["0.0.0.0/0"]` — **change this** |
 | `jenkins_instance_type`  | Jenkins EC2 size            | `t3.medium`                       |
 | `app_instance_type`      | App EC2 size                | `t3.small`                        |
@@ -431,237 +431,65 @@ See [RUNBOOK.md](RUNBOOK.md) for comprehensive troubleshooting.
 
 ## Monitoring & Observability
 
-This project includes a comprehensive monitoring stack with Prometheus, Grafana, and Alertmanager for observing your infrastructure and application.
+This project implements **End-to-End Observability** using the Golden Signals (RED metrics), Distributed Tracing, and Structured Logging.
 
-![Observability Architecture](architecture-observability.png)
+### Observability Stack (Local & Production)
 
-### The Three Pillars of Observability
+| Tool | Purpose | Port | link |
+| --- | --- | --- | --- |
+| **Prometheus** | Metrics collection (RED metrics) | `9090` | [Open](http://localhost:9090) |
+| **Jaeger** | Distributed Tracing (Trace paths) | `16686` | [Open](http://localhost:16686) |
+| **Grafana** | Visualization & Dashboards | `3000` | [Open](http://localhost:3000) |
 
-1. **Metrics** - Quantitative measurements (Prometheus)
-2. **Logs** - Immutable timestamped records of events (JSON logging)
-3. **Traces** - Request paths across distributed systems (OpenTelemetry)
+### Key Features
 
-### Monitoring Stack Components
+1.  **Distributed Tracing (OpenTelemetry)**: Every request is assigned a unique `trace_id`. Even if a request hits multiple services, you can see the entire path in Jaeger.
+2.  **RED Metrics**:
+    *   **Rate**: Number of requests per second.
+    *   **Errors**: Number of failed requests (4xx/5xx).
+    *   **Duration**: Time taken for requests (P95 latency).
+3.  **Log Correlation**: Trace IDs and Span IDs are automatically injected into structured JSON logs, allowing you to find the exact log entry for any trace.
+4.  **Proactive Alerting**: Alerts trigger if Error Rate > 5% or Latency > 300ms for 10 minutes.
 
-| Component    | Port | Purpose                        |
-| ------------ | ---- | ------------------------------ |
-| Prometheus   | 9090 | Metrics collection and storage |
-| Grafana      | 3000 | Visualization and dashboards   |
-| Alertmanager | 9093 | Alert routing and notification |
+### For Beginners: What is this?
 
-### Logging
+Imagine your app is a restaurant.
+*   **Metrics** tell you how many customers came in (Rate), how many complained (Errors), and how long they waited for food (Duration).
+*   **Logs** are the receipts and kitchen notes—detailed records of what happened for each order.
+*   **Traces** are like following a single plate from the order being taken, to the kitchen, to the table. If a plate is late, the trace tells you exactly which step (cooking, plating, or serving) was slow.
 
-The application uses structured JSON logging for production environments:
+### Quick Start - Running Observability Locally
 
-```javascript
-const logger = require("./logger"); // Winston or Pino logger
+1.  **Start the App & Monitoring**:
+    ```bash
+    # Start the monitoring stack
+    cd monitoring
+    docker-compose up -d
+    
+    # Back in the root, start the app
+    cd ..
+    npm install
+    npm start
+    ```
 
-// Request logging
-app.use((req, res, next) => {
-  logger.info("Incoming request", {
-    method: req.method,
-    path: req.path,
-    ip: req.ip,
-    userAgent: req.get("user-agent"),
-  });
-  next();
-});
+2.  **Generate Traffic**: Click around the Todo app at `http://localhost:5000`.
 
-// Error logging
-app.use((err, req, res, next) => {
-  logger.error("Request error", {
-    error: err.message,
-    stack: err.stack,
-    path: req.path,
-    method: req.method,
-  });
-  res.status(500).json({ error: "Internal server error" });
-});
-```
+3.  **View Dasboards**: 
+    - Open **Grafana** (`http://localhost:3000`).
+    - Login: `admin` / `admin`.
+    - Go to Dashboards → **Node.js E2E Observability**.
 
-**Log Levels:**
+4.  **Find Traces**:
+    - Open **Jaeger** (`http://localhost:16686`).
+    - Search for Service: `obs-todo-app`.
 
-- `error` - Critical errors requiring immediate attention
-- `warn` - Warning conditions
-- `info` - General informational messages
-- `debug` - Detailed debugging information
+### Validation: How to test the Alerts
 
-**Production Logging Best Practices:**
+We've pre-configured alerts to trigger under high load or errors. You can simulate these situations by:
+1.  **Simulate Latency**: Use a tool like `ab` (Apache Benchmark) or hit endpoints repeatedly while the app is busy.
+2.  **Simulate Errors**: Delete non-existent todos or trigger validation errors by sending empty tasks.
 
-- Use JSON format for structured logging
-- Include request IDs for tracing
-- Log sensitive data never (passwords, tokens)
-- Use log aggregation tools (ELK, Loki, CloudWatch)
-- Set appropriate log retention policies
-
-### Distributed Tracing
-
-For microservices architectures, distributed tracing helps track requests across services:
-
-```javascript
-const tracing = require("@opentelemetry/sdk-node");
-const { JaegerExporter } = require("@opentelemetry/exporter-jaeger");
-const { HttpInstrumentation } = require("@opentelemetry/instrumentation-http");
-
-const tracerProvider = new tracing.NodeTracerProvider({
-  serviceName: "my-node-app",
-  plugins: [new HttpInstrumentation()],
-});
-
-tracerProvider.addSpanProcessor(new SimpleSpanProcessor(new JaegerExporter()));
-tracerProvider.register();
-```
-
-**Trace Context Propagation:**
-
-```javascript
-// Add to outgoing requests
-const span = tracer.startSpan("fetch-data");
-const ctx = trace.setSpan(context.active(), span);
-
-context.with(ctx, async () => {
-  const response = await fetch("https://api.example.com/data");
-  span.end();
-});
-```
-
-### Included Dashboards
-
-- **Node.js Application Dashboard** (`monitoring/grafana-dashboards/nodejs-dashboard.json`)
-  - Request rates and response times
-  - Error rates
-  - CPU and memory usage
-  - Container health metrics
-
-### Alert Rules
-
-The monitoring stack includes pre-configured alert rules (`monitoring/alert_rules.yml`):
-
-- High CPU usage (>80%)
-- High memory usage (>85%)
-- Container down
-- High error rate (>5%)
-- Endpoint down
-
-### Quick Start - Running Monitoring Locally
-
-```bash
-cd monitoring
-cp .env.example .env
-# Edit .env - set ADMIN_PASSWORD for Grafana
-
-docker-compose up -d
-```
-
-Access the monitoring stack:
-
-| Service      | URL                   | Credentials                  |
-| ------------ | --------------------- | ---------------------------- |
-| Grafana      | http://localhost:3000 | admin / (your .env password) |
-| Prometheus   | http://localhost:9090 | —                            |
-| Alertmanager | http://localhost:9093 | —                            |
-
-### Adding Metrics to Your Application
-
-The Node.js app exposes Prometheus metrics at `/metrics` endpoint. Example usage:
-
-```bash
-# View available metrics
-curl http://localhost:5000/metrics
-
-# Key metrics include:
-# - http_requests_total (counter)
-# - http_request_duration_seconds (histogram)
-# - nodejs_memory_usage_bytes (gauge)
-# - process_cpu_seconds_total (counter)
-```
-
-### Custom Metrics Example
-
-Add custom application metrics in your code:
-
-```javascript
-const promClient = require("prom-client");
-
-// Create a counter for API requests
-const apiRequestCounter = new promClient.Counter({
-  name: "api_requests_total",
-  help: "Total number of API requests",
-  labelNames: ["method", "endpoint", "status"],
-});
-
-// Create a histogram for response times
-const responseTimeHistogram = new promClient.Histogram({
-  name: "http_request_duration_seconds",
-  help: "Duration of HTTP requests in seconds",
-  labelNames: ["method", "endpoint", "status"],
-  buckets: [0.1, 0.5, 1, 2, 5],
-});
-
-// Use in your routes
-app.use((req, res, next) => {
-  const start = Date.now();
-  res.on("finish", () => {
-    const duration = (Date.now() - start) / 1000;
-    apiRequestCounter.inc({
-      method: req.method,
-      endpoint: req.path,
-      status: res.statusCode,
-    });
-    responseTimeHistogram.observe(
-      { method: req.method, endpoint: req.path, status: res.statusCode },
-      duration,
-    );
-  });
-  next();
-});
-```
-
-### Configuring Alert Notifications
-
-Edit `monitoring/alertmanager.yml` to configure notification receivers:
-
-```yaml
-receivers:
-  - name: "email"
-    email_configs:
-      - to: "alerts@yourdomain.com"
-        send_resolved: true
-  - name: "slack"
-    slack_configs:
-      - channel: "#alerts"
-        send_resolved: true
-```
-
-See [monitoring/README.md](monitoring/README.md) for detailed configuration.
-
-### AWS CloudWatch Integration (Terraform)
-
-The Terraform monitoring module (`terraform/modules/monitoring/`) provisions:
-
-| AWS Service        | Purpose                     |
-| ------------------ | --------------------------- |
-| CloudWatch Logs    | Centralized log aggregation |
-| CloudWatch Metrics | Custom application metrics  |
-| CloudWatch Alarms  | Threshold-based alerting    |
-| GuardDuty          | Threat detection            |
-
-**Example CloudWatch Alarm:**
-
-```hcl
-resource "aws_cloudwatch_metric_alarm" "high_cpu" {
-  alarm_name          = "${var.project_name}-high-cpu"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods = "2"
-  metric_name         = "CPUUtilization"
-  namespace           = "AWS/EC2"
-  period              = "300"
-  statistic           = "Average"
-  threshold           = "80"
-  alarm_description   = "CPU utilization exceeds 80%"
-  alarm_actions       = [aws_sns_topic.alerts.arn]
-}
-```
+_Note: For production, ensure `OTEL_EXPORTER_OTLP_ENDPOINT` is set to your Jaeger collector address._
 
 ### SRE Best Practices
 
