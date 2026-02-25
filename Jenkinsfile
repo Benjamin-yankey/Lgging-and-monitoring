@@ -115,8 +115,17 @@ pipeline {
                         set +x
                         echo "Deploying to EC2 host: ${EC2_HOST}..."
                         
-                        ssh -i "\$SSH_KEY" -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR \$SSH_USER@${EC2_HOST} << EOF
+                        # Verify the key file exists (path provided by Jenkins)
+                        if [ ! -f "${SSH_KEY}" ]; then
+                            echo "ERROR: SSH key file not found at ${SSH_KEY}"
+                            exit 1
+                        fi
+                        
+                        echo "Connecting as user: ${SSH_USER}"
+                        
+                        ssh -i "${SSH_KEY}" -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR ${SSH_USER}@${EC2_HOST} << EOF
                             set +x
+                            echo "Successfully connected to remote host!"
                             docker stop ${CONTAINER_NAME} || true
                             docker rm ${CONTAINER_NAME} || true
                             echo "\$REGISTRY_CREDS_PSW" | docker login -u "\$REGISTRY_CREDS_USR" --password-stdin 2>&1 | grep -v "WARNING" || true
