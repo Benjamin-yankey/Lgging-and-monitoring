@@ -16,6 +16,8 @@ pipeline {
         REGISTRY = "docker.io"
         REGISTRY_CREDS = credentials('registry_creds')
         CONTAINER_NAME = "node-app"
+        EC2_HOST = "${params.EC2_HOST}"
+        MONITORING_IP = "${params.MONITORING_IP}"
     }
     
     stages {
@@ -109,25 +111,25 @@ pipeline {
             steps {
                 echo 'Deploying to EC2...'
                 withCredentials([sshUserPrivateKey(credentialsId: 'ec2_ssh', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
-                    sh '''
+                    sh """
                         set +x
                         echo "Deploying to EC2 host: ${EC2_HOST}..."
                         
-                        ssh -i "$SSH_KEY" -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR $SSH_USER@${EC2_HOST} << EOF
+                        ssh -i "\$SSH_KEY" -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR \$SSH_USER@${EC2_HOST} << EOF
                             set +x
                             docker stop ${CONTAINER_NAME} || true
                             docker rm ${CONTAINER_NAME} || true
-                            echo "$REGISTRY_CREDS_PSW" | docker login -u "$REGISTRY_CREDS_USR" --password-stdin 2>&1 | grep -v "WARNING" || true
-                            docker pull $REGISTRY_CREDS_USR/${DOCKER_IMAGE}:latest
+                            echo "\$REGISTRY_CREDS_PSW" | docker login -u "\$REGISTRY_CREDS_USR" --password-stdin 2>&1 | grep -v "WARNING" || true
+                            docker pull \$REGISTRY_CREDS_USR/${DOCKER_IMAGE}:latest
                             docker run -d --name ${CONTAINER_NAME} \
                                 -p 5000:5000 \
                                 -e APP_VERSION=${DOCKER_TAG} \
-                                -e OTEL_EXPORTER_OTLP_ENDPOINT=http://${params.MONITORING_IP}:4318/v1/traces \
-                                $REGISTRY_CREDS_USR/${DOCKER_IMAGE}:latest
+                                -e OTEL_EXPORTER_OTLP_ENDPOINT=http://${MONITORING_IP}:4318/v1/traces \
+                                \$REGISTRY_CREDS_USR/${DOCKER_IMAGE}:latest
                             docker ps
                             echo "Deployment complete"
 EOF
-                    '''
+                    """
                 }
             }
         }
