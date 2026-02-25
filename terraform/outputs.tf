@@ -63,6 +63,11 @@ output "alertmanager_url" {
   value       = "http://${module.monitoring_server.public_ip}:9093"
 }
 
+output "monitoring_server_private_ip" {
+  description = "Private IP address of the monitoring server"
+  value       = module.monitoring_server.private_ip
+}
+
 output "ssh_monitoring_server" {
   description = "SSH command for monitoring server (retrieve key from Secrets Manager first)"
   value       = "ssh -i <private-key-file> ec2-user@${module.monitoring_server.public_ip}"

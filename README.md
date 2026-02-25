@@ -158,7 +158,7 @@ Open `http://<JENKINS_IP>:8080`, complete setup, then install these plugins:
 3. **Repository URL**: your GitHub repo
 4. **Branch**: `*/main`
 5. **Script Path**: `Jenkinsfile`
-6. **Build with Parameters** → enter app server IP from `terraform output`
+6. **Build with Parameters** → enter app server private IP and monitoring server private IP from `terraform output`
 
 ### 8. Verify Deployment
 

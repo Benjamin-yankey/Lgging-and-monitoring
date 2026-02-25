@@ -6,7 +6,8 @@ pipeline {
     }
 
     parameters {
-        string(name: 'EC2_HOST', description: 'Public IP of the app server EC2 instance (from Terraform output: app_server_public_ip)')
+        string(name: 'EC2_HOST', description: 'Address of the app server EC2 instance. Use Private IP (app_server_private_ip) for reliable inter-VPC deployment to avoid security group/routing issues.')
+        string(name: 'MONITORING_IP', description: 'Private IP of the monitoring server (from Terraform output: monitoring_server_private_ip) for OpenTelemetry tracing.')
     }
 
     environment {
@@ -91,7 +92,7 @@ pipeline {
                 echo 'Pushing image to registry...'
                 sh '''
                     set +x
-                    echo $REGISTRY_CREDS_PSW | docker login -u $REGISTRY_CREDS_USR --password-stdin 2>&1 | grep -v "WARNING"
+                    echo "$REGISTRY_CREDS_PSW" | docker login -u "$REGISTRY_CREDS_USR" --password-stdin 2>&1 | grep -v "WARNING"
                     set -x
                     docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} $REGISTRY_CREDS_USR/${DOCKER_IMAGE}:${DOCKER_TAG}
                     docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} $REGISTRY_CREDS_USR/${DOCKER_IMAGE}:latest
@@ -110,15 +111,19 @@ pipeline {
                 withCredentials([sshUserPrivateKey(credentialsId: 'ec2_ssh', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
                     sh '''
                         set +x
-                        echo "Deploying to EC2..."
+                        echo "Deploying to EC2 host: ${EC2_HOST}..."
                         
-                        ssh -i "$SSH_KEY" -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR $SSH_USER@${EC2_HOST} << 'EOF'
+                        ssh -i "$SSH_KEY" -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR $SSH_USER@${EC2_HOST} << EOF
                             set +x
                             docker stop ${CONTAINER_NAME} || true
                             docker rm ${CONTAINER_NAME} || true
                             echo "$REGISTRY_CREDS_PSW" | docker login -u "$REGISTRY_CREDS_USR" --password-stdin 2>&1 | grep -v "WARNING" || true
                             docker pull $REGISTRY_CREDS_USR/${DOCKER_IMAGE}:latest
-                            docker run -d --name ${CONTAINER_NAME} -p 5000:5000 $REGISTRY_CREDS_USR/${DOCKER_IMAGE}:latest
+                            docker run -d --name ${CONTAINER_NAME} \
+                                -p 5000:5000 \
+                                -e APP_VERSION=${DOCKER_TAG} \
+                                -e OTEL_EXPORTER_OTLP_ENDPOINT=http://${params.MONITORING_IP}:4318/v1/traces \
+                                $REGISTRY_CREDS_USR/${DOCKER_IMAGE}:latest
                             docker ps
                             echo "Deployment complete"
 EOF
