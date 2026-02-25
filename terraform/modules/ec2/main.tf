@@ -4,7 +4,8 @@ resource "aws_instance" "app_server" {
   key_name               = var.key_name
   subnet_id              = var.subnet_id
   vpc_security_group_ids = var.security_group_ids
-  user_data              = var.user_data
+  user_data                    = var.user_data
+  user_data_replace_on_change  = true
 
   root_block_device {
     volume_type = "gp3"

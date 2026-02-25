@@ -70,6 +70,7 @@ resource "aws_instance" "jenkins" {
   iam_instance_profile   = aws_iam_instance_profile.jenkins.name
 
   user_data = templatefile("${path.module}/jenkins-setup.sh", {})
+  user_data_replace_on_change = true
 
   root_block_device {
     volume_type = "gp3"
