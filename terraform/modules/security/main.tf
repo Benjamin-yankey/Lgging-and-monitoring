@@ -172,6 +172,30 @@ resource "aws_security_group" "monitoring" {
     cidr_blocks = var.allowed_ips
   }
 
+  ingress {
+    description = "Jaeger UI"
+    from_port   = 16686
+    to_port     = 16686
+    protocol    = "tcp"
+    cidr_blocks = var.allowed_ips
+  }
+
+  ingress {
+    description = "OTLP gRPC"
+    from_port   = 4317
+    to_port     = 4317
+    protocol    = "tcp"
+    cidr_blocks = var.allowed_ips
+  }
+
+  ingress {
+    description = "OTLP HTTP"
+    from_port   = 4318
+    to_port     = 4318
+    protocol    = "tcp"
+    cidr_blocks = var.allowed_ips
+  }
+
   egress {
     description = "HTTPS outbound"
     from_port   = 443
@@ -268,4 +292,45 @@ resource "aws_security_group_rule" "app_from_monitoring_node_exporter" {
   security_group_id        = aws_security_group.app.id
   source_security_group_id = aws_security_group.monitoring.id
   description              = "Allow Node Exporter scraping from monitoring server"
+}
+
+# App → Monitoring OTLP (port 4317/4318)
+resource "aws_security_group_rule" "app_to_monitoring_otlp_grpc" {
+  type                     = "egress"
+  from_port                = 4317
+  to_port                  = 4317
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.app.id
+  source_security_group_id = aws_security_group.monitoring.id
+  description              = "Send traces to Jaeger (gRPC)"
+}
+
+resource "aws_security_group_rule" "app_to_monitoring_otlp_http" {
+  type                     = "egress"
+  from_port                = 4318
+  to_port                  = 4318
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.app.id
+  source_security_group_id = aws_security_group.monitoring.id
+  description              = "Send traces to Jaeger (HTTP)"
+}
+
+resource "aws_security_group_rule" "monitoring_from_app_otlp_grpc" {
+  type                     = "ingress"
+  from_port                = 4317
+  to_port                  = 4317
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.monitoring.id
+  source_security_group_id = aws_security_group.app.id
+  description              = "Receive traces from App (gRPC)"
+}
+
+resource "aws_security_group_rule" "monitoring_from_app_otlp_http" {
+  type                     = "ingress"
+  from_port                = 4318
+  to_port                  = 4318
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.monitoring.id
+  source_security_group_id = aws_security_group.app.id
+  description              = "Receive traces from App (HTTP)"
 }
