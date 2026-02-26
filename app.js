@@ -214,7 +214,11 @@ function getDbOne(sql, params = []) {
   });
 }
 
-app.use(
+// ─── Middleware ───────────────────────────────────────────────────────────────
+app.use((req, res, next) => {
+  const isIP = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(req.hostname);
+  const upgrade = enableHttpsUpgrade && !isIP;
+
   helmet({
     contentSecurityPolicy: {
       directives: {
@@ -225,14 +229,14 @@ app.use(
         formAction: ["'self'", ...cspFormActionOrigins],
         connectSrc: ["'self'"],
         imgSrc: ["'self'", "data:"],
-        ...(enableHttpsUpgrade ? { upgradeInsecureRequests: [] } : {}),
+        ...(upgrade ? { upgradeInsecureRequests: [] } : {}),
       },
     },
     hsts: false,
     crossOriginOpenerPolicy: false,
     originAgentCluster: false,
-  }),
-);
+  })(req, res, next);
+});
 
 app.use(
   cors({
@@ -469,22 +473,8 @@ app.get("/", (req, res) => {
         let currentFilter = 'all';
         let allTodos = [];
 
-        function isIpv4Host(hostname) {
-            const parts = hostname.split('.');
-            return parts.length === 4 && parts.every((part) => {
-                if (!/^[0-9]+$/.test(part)) return false;
-                const value = Number(part);
-                return value >= 0 && value <= 255;
-            });
-        }
-
         function getApiUrl(path) {
-            const url = new URL(path, window.location.origin);
-            // If user opens the app over HTTPS on a raw IPv4 host, force API calls back to HTTP.
-            if (window.location.protocol === 'https:' && isIpv4Host(window.location.hostname)) {
-                url.protocol = 'http:';
-            }
-            return url;
+            return new URL(path, window.location.origin);
         }
         
         function loadTodos(search = '') {
