@@ -832,7 +832,7 @@ app.get("/metrics", async (req, res) => {
 });
 
 if (require.main === module) {
-  const port = process.env.PORT || 5001;
+  const port = process.env.PORT || 5000;
   app.listen(port, "0.0.0.0", () => {
     logInfo(`Server running on port ${port}`);
   });
