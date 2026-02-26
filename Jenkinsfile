@@ -111,34 +111,53 @@ pipeline {
             steps {
                 echo 'Deploying to EC2...'
                 withCredentials([sshUserPrivateKey(credentialsId: 'ec2_ssh', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
-                    sh """
+                    sh '''
                         set +x
-                        echo "Deploying to EC2 host: ${EC2_HOST}..."
+                        echo "Deploying to EC2 host: $EC2_HOST..."
                         
                         # Verify the key file exists (path provided by Jenkins)
-                        if [ ! -f "${SSH_KEY}" ]; then
-                            echo "ERROR: SSH key file not found at ${SSH_KEY}"
+                        if [ ! -f "$SSH_KEY" ]; then
+                            echo "ERROR: SSH key file not found at $SSH_KEY"
                             exit 1
                         fi
                         
-                        echo "Connecting as user: ${SSH_USER}"
+                        echo "Connecting as user: $SSH_USER"
+
+                        # Fast preflight so failures are explicit and fail early.
+                        if ! ssh -i "$SSH_KEY" \
+                            -o StrictHostKeyChecking=accept-new \
+                            -o UserKnownHostsFile=/dev/null \
+                            -o LogLevel=ERROR \
+                            -o ConnectTimeout=15 \
+                            -o ConnectionAttempts=2 \
+                            "$SSH_USER@$EC2_HOST" "echo 'SSH connectivity check passed'"; then
+                            echo "ERROR: Unable to reach $EC2_HOST:22 from Jenkins."
+                            echo "Hint: verify EC2_HOST and confirm app SG allows SSH from Jenkins SG."
+                            exit 1
+                        fi
+
+                        # Optional registry login on the remote host (safe stdin, no Groovy interpolation).
+                        printf '%s' "$REGISTRY_CREDS_PSW" | ssh -i "$SSH_KEY" \
+                            -o StrictHostKeyChecking=accept-new \
+                            -o UserKnownHostsFile=/dev/null \
+                            -o LogLevel=ERROR \
+                            "$SSH_USER@$EC2_HOST" "docker login -u '$REGISTRY_CREDS_USR' --password-stdin >/dev/null 2>&1 || true"
                         
-                        ssh -i "${SSH_KEY}" -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR ${SSH_USER}@${EC2_HOST} << EOF
+                        ssh -i "$SSH_KEY" -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR "$SSH_USER@$EC2_HOST" << EOF
                             set +x
                             echo "Successfully connected to remote host!"
                             docker stop ${CONTAINER_NAME} || true
                             docker rm ${CONTAINER_NAME} || true
-                            echo "\$REGISTRY_CREDS_PSW" | docker login -u "\$REGISTRY_CREDS_USR" --password-stdin 2>&1 | grep -v "WARNING" || true
-                            docker pull \$REGISTRY_CREDS_USR/${DOCKER_IMAGE}:latest
+                            docker pull ${REGISTRY_CREDS_USR}/${DOCKER_IMAGE}:latest
                             docker run -d --name ${CONTAINER_NAME} \
                                 -p 5000:5000 \
                                 -e APP_VERSION=${DOCKER_TAG} \
                                 -e OTEL_EXPORTER_OTLP_ENDPOINT=http://${MONITORING_IP}:4318/v1/traces \
-                                \$REGISTRY_CREDS_USR/${DOCKER_IMAGE}:latest
+                                ${REGISTRY_CREDS_USR}/${DOCKER_IMAGE}:latest
                             docker ps
                             echo "Deployment complete"
 EOF
-                    """
+                    '''
                 }
             }
         }
