@@ -37,4 +37,11 @@ describe("App Tests", () => {
     expect(response.type).toBe("text/html");
     expect(response.text).toContain("Todo List");
   });
+
+  test("GET / should include syntactically valid inline script", async () => {
+    const response = await request(app).get("/");
+    const scriptMatch = response.text.match(/<script>([\s\S]*?)<\/script>/);
+    expect(scriptMatch).toBeTruthy();
+    expect(() => new Function(scriptMatch[1])).not.toThrow();
+  });
 });

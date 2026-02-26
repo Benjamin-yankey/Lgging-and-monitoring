@@ -455,9 +455,9 @@ app.get("/", (req, res) => {
         </form>
 
         <div class="tabs">
-            <button class="tab active" onclick="filterTodos('all')">All</button>
-            <button class="tab" onclick="filterTodos('active')">Active</button>
-            <button class="tab" onclick="filterTodos('completed')">Completed</button>
+            <button class="tab active" onclick="filterTodos(event, 'all')">All</button>
+            <button class="tab" onclick="filterTodos(event, 'active')">Active</button>
+            <button class="tab" onclick="filterTodos(event, 'completed')">Completed</button>
         </div>
 
         <div class="todo-list">
@@ -469,13 +469,22 @@ app.get("/", (req, res) => {
         let currentFilter = 'all';
         let allTodos = [];
 
+        function isIpv4Host(hostname) {
+            const parts = hostname.split('.');
+            return parts.length === 4 && parts.every((part) => {
+                if (!/^[0-9]+$/.test(part)) return false;
+                const value = Number(part);
+                return value >= 0 && value <= 255;
+            });
+        }
+
         function getApiUrl(path) {
-            let origin = window.location.origin;
-            // Always ensure the protocol is http for API calls on IP-based origin
-            if (/^https?:\/\/(\d{1,3}\.){3}\d{1,3}/.test(origin)) {
-                origin = origin.replace('https://', 'http://');
+            const url = new URL(path, window.location.origin);
+            // If user opens the app over HTTPS on a raw IPv4 host, force API calls back to HTTP.
+            if (window.location.protocol === 'https:' && isIpv4Host(window.location.hostname)) {
+                url.protocol = 'http:';
             }
-            return new URL(path, origin);
+            return url;
         }
         
         function loadTodos(search = '') {
@@ -532,7 +541,7 @@ app.get("/", (req, res) => {
             document.getElementById('todos').innerHTML = html || '<p>No todos yet</p>';
         }
 
-        function filterTodos(filter) {
+        function filterTodos(event, filter) {
             currentFilter = filter;
             document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
             event.target.classList.add('active');
