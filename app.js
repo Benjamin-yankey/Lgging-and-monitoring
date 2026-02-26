@@ -8,7 +8,6 @@ const cors = require("cors");
 const xss = require("xss");
 const { logInfo, logError } = require("./logger"); // Structured logging
 const app = express();
-const enableHttpsUpgrade = process.env.CSP_UPGRADE_INSECURE_REQUESTS === "true";
 const cspFormActionOrigins = (process.env.CSP_FORM_ACTION_ORIGINS || "")
   .split(",")
   .map((origin) => origin.trim())
@@ -179,9 +178,6 @@ function getDateOnly(value) {
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
 app.use((req, res, next) => {
-  const isIP = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(req.hostname);
-  const upgrade = enableHttpsUpgrade && !isIP;
-
   helmet({
     contentSecurityPolicy: {
       directives: {
@@ -192,7 +188,6 @@ app.use((req, res, next) => {
         formAction: ["'self'", ...cspFormActionOrigins],
         connectSrc: ["'self'"],
         imgSrc: ["'self'", "data:"],
-        ...(upgrade ? { upgradeInsecureRequests: [] } : {}),
       },
     },
     hsts: false,
@@ -432,20 +427,6 @@ app.get("/", (req, res) => {
     <script>
         let currentFilter = 'all';
         let allTodos = [];
-        const HTTPS_REDIRECT_FLAG = 'todo_http_redirect_attempted';
-
-        if (window.location.protocol === 'https:') {
-            if (!sessionStorage.getItem(HTTPS_REDIRECT_FLAG)) {
-                sessionStorage.setItem(HTTPS_REDIRECT_FLAG, 'true');
-                const httpUrl = new URL(window.location.href);
-                httpUrl.protocol = 'http:';
-                window.location.replace(httpUrl.toString());
-            } else {
-                console.error('HTTPS is not supported by this server. Open http:// instead.');
-            }
-        } else {
-            sessionStorage.removeItem(HTTPS_REDIRECT_FLAG);
-        }
 
         function getApiUrl(path) {
             return new URL(path, window.location.origin);

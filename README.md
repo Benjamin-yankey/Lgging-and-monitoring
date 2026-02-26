@@ -11,15 +11,17 @@ Automated CI/CD pipeline that provisions AWS infrastructure with Terraform, runs
 Developer  →  GitHub  →  Jenkins (EC2 · Docker)  →  Docker Hub  →  App Server (EC2)
 Observability: App → OTLP → Jaeger | App → /metrics → Prometheus → Grafana
 ```
-  1. Checkout                 – clone repo
-  2. Install                  – npm ci
-  3. Test                     – npm test (Jest)
-  4. Security Scan - Dependencies – npm audit for vulnerabilities
-  5. Docker Build             – build & tag image
-  6. Security Scan - Image    – Trivy container vulnerability scan
-  7. Push Image               – push to Docker Hub
-  8. Deploy                   – SSH into app server, pull & run container
-```
+
+1. Checkout – clone repo
+2. Install – npm ci
+3. Test – npm test (Jest)
+4. Security Scan - Dependencies – npm audit for vulnerabilities
+5. Docker Build – build & tag image
+6. Security Scan - Image – Trivy container vulnerability scan
+7. Push Image – push to Docker Hub
+8. Deploy – SSH into app server, pull & run container
+
+````
 
 **AWS resources created by Terraform:**
 
@@ -74,11 +76,10 @@ This pipeline implements comprehensive security best practices across all layers
 Set these for production deployments:
 
 ```bash
-export ALLOWED_ORIGINS="https://yourdomain.com,https://app.yourdomain.com"
+export ALLOWED_ORIGINS="http://yourdomain.com,http://app.yourdomain.com"
 export APP_VERSION="1.0.0"
-export CSP_UPGRADE_INSECURE_REQUESTS="true"  # enable only when serving over HTTPS end-to-end
-export CSP_FORM_ACTION_ORIGINS="https://yourdomain.com"  # optional extra form-action allowlist
-```
+export CSP_FORM_ACTION_ORIGINS="http://yourdomain.com"  # optional extra form-action allowlist
+````
 
 ## Prerequisites
 
@@ -401,7 +402,7 @@ const limiter = rateLimit({
 
 ```bash
 docker run -d --name node-app -p 5000:5000 \
-  -e ALLOWED_ORIGINS="http://localhost:3000,https://yourdomain.com" \
+  -e ALLOWED_ORIGINS="http://localhost:3000,http://yourdomain.com" \
   your-image:latest
 ```
 
@@ -437,37 +438,39 @@ This project implements **End-to-End Observability** using the Golden Signals (R
 
 ### Observability Stack (Local & Production)
 
-| Tool | Purpose | Port | link |
-| --- | --- | --- | --- |
-| **Prometheus** | Metrics collection (RED metrics) | `9090` | [Open](http://localhost:9090) |
-| **Jaeger** | Distributed Tracing (Trace paths) | `16686` | [Open](http://localhost:16686) |
-| **Grafana** | Visualization & Dashboards | `3000` | [Open](http://localhost:3000) |
+| Tool           | Purpose                           | Port    | link                           |
+| -------------- | --------------------------------- | ------- | ------------------------------ |
+| **Prometheus** | Metrics collection (RED metrics)  | `9090`  | [Open](http://localhost:9090)  |
+| **Jaeger**     | Distributed Tracing (Trace paths) | `16686` | [Open](http://localhost:16686) |
+| **Grafana**    | Visualization & Dashboards        | `3000`  | [Open](http://localhost:3000)  |
 
 ### Key Features
 
 1.  **Distributed Tracing (OpenTelemetry)**: Every request is assigned a unique `trace_id`. Even if a request hits multiple services, you can see the entire path in Jaeger.
 2.  **RED Metrics**:
-    *   **Rate**: Number of requests per second.
-    *   **Errors**: Number of failed requests (4xx/5xx).
-    *   **Duration**: Time taken for requests (P95 latency).
+    - **Rate**: Number of requests per second.
+    - **Errors**: Number of failed requests (4xx/5xx).
+    - **Duration**: Time taken for requests (P95 latency).
 3.  **Log Correlation**: Trace IDs and Span IDs are automatically injected into structured JSON logs, allowing you to find the exact log entry for any trace.
 4.  **Proactive Alerting**: Alerts trigger if Error Rate > 5% or Latency > 300ms for 10 minutes.
 
 ### For Beginners: What is this?
 
 Imagine your app is a restaurant.
-*   **Metrics** tell you how many customers came in (Rate), how many complained (Errors), and how long they waited for food (Duration).
-*   **Logs** are the receipts and kitchen notes—detailed records of what happened for each order.
-*   **Traces** are like following a single plate from the order being taken, to the kitchen, to the table. If a plate is late, the trace tells you exactly which step (cooking, plating, or serving) was slow.
+
+- **Metrics** tell you how many customers came in (Rate), how many complained (Errors), and how long they waited for food (Duration).
+- **Logs** are the receipts and kitchen notes—detailed records of what happened for each order.
+- **Traces** are like following a single plate from the order being taken, to the kitchen, to the table. If a plate is late, the trace tells you exactly which step (cooking, plating, or serving) was slow.
 
 ### Quick Start - Running Observability Locally
 
 1.  **Start the App & Monitoring**:
+
     ```bash
     # Start the monitoring stack
     cd monitoring
     docker-compose up -d
-    
+
     # Back in the root, start the app
     cd ..
     npm install
@@ -476,7 +479,7 @@ Imagine your app is a restaurant.
 
 2.  **Generate Traffic**: Click around the Todo app at `http://localhost:5000`.
 
-3.  **View Dasboards**: 
+3.  **View Dasboards**:
     - Open **Grafana** (`http://localhost:3000`).
     - Login: `admin` / `admin`.
     - Go to Dashboards → **Node.js E2E Observability**.
@@ -488,6 +491,7 @@ Imagine your app is a restaurant.
 ### Validation: How to test the Alerts
 
 We've pre-configured alerts to trigger under high load or errors. You can simulate these situations by:
+
 1.  **Simulate Latency**: Use a tool like `ab` (Apache Benchmark) or hit endpoints repeatedly while the app is busy.
 2.  **Simulate Errors**: Delete non-existent todos or trigger validation errors by sending empty tasks.
 
@@ -499,13 +503,13 @@ _Note: For production, ensure `OTEL_EXPORTER_OTLP_ENDPOINT` is set to your Jaege
 
 Key metrics to track:
 
-| Category       | SLI                                          |
-| --------------- | -------------------------------------------- |
-| Availability   | Successful requests / Total requests         |
-| Latency        | Response time (p50, p95, p99)                |
-| Throughput     | Requests per second (RPS)                   |
-| Errors         | Error rate (4xx, 5xx responses)              |
-| Saturation     | CPU, Memory, Disk, Network utilization       |
+| Category     | SLI                                    |
+| ------------ | -------------------------------------- |
+| Availability | Successful requests / Total requests   |
+| Latency      | Response time (p50, p95, p99)          |
+| Throughput   | Requests per second (RPS)              |
+| Errors       | Error rate (4xx, 5xx responses)        |
+| Saturation   | CPU, Memory, Disk, Network utilization |
 
 #### Service Level Objectives (SLOs)
 
@@ -537,27 +541,31 @@ Example: 99.9% SLO = 43.8 minutes/month downtime allowed
 #### Application Performance
 
 1. **Enable gzip compression:**
+
 ```javascript
-const compression = require('compression');
+const compression = require("compression");
 app.use(compression());
 ```
 
 2. **Use connection pooling for databases:**
+
 ```javascript
 const pool = mysql.createPool({
   connectionLimit: 10,
   host: process.env.DB_HOST,
-  database: process.env.DB_NAME
+  database: process.env.DB_NAME,
 });
 ```
 
 3. **Implement response caching:**
+
 ```javascript
-const apicache = require('api-cache-middleware');
-app.use(apicache({ duration: '5 minutes' }));
+const apicache = require("api-cache-middleware");
+app.use(apicache({ duration: "5 minutes" }));
 ```
 
 4. **Optimize database queries:**
+
 - Add appropriate database indexes
 - Use pagination for large datasets
 - Implement query result caching
@@ -565,6 +573,7 @@ app.use(apicache({ duration: '5 minutes' }));
 #### Container Performance
 
 1. **Use multi-stage builds** to reduce image size:
+
 ```dockerfile
 # Build stage
 FROM node:20-alpine AS builder
@@ -582,33 +591,34 @@ CMD ["node", "app.js"]
 ```
 
 2. **Set resource limits** in docker-compose:
+
 ```yaml
 services:
   app:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
         reservations:
-          cpus: '0.25'
+          cpus: "0.25"
           memory: 256M
 ```
 
 #### Capacity Planning
 
-| Metric | Calculation |
-|--------|------------- |
-| Daily Requests | Users × Requests per user per day |
-| Peak RPS | Daily Requests / (16 × 3600) × Safety factor |
-| Storage | Logs + Database + Media files |
+| Metric         | Calculation                                  |
+| -------------- | -------------------------------------------- |
+| Daily Requests | Users × Requests per user per day            |
+| Peak RPS       | Daily Requests / (16 × 3600) × Safety factor |
+| Storage        | Logs + Database + Media files                |
 
-| Instance Type | Expected RPS | Use Case |
-| -------------- | ------------ | ---------- |
-| t3.micro | 50-100 | Development, small apps |
-| t3.small | 200-500 | Production small |
-| t3.medium | 500-2000 | Production medium |
-| t3.large | 2000-5000 | Production large |
+| Instance Type | Expected RPS | Use Case                |
+| ------------- | ------------ | ----------------------- |
+| t3.micro      | 50-100       | Development, small apps |
+| t3.small      | 200-500      | Production small        |
+| t3.medium     | 500-2000     | Production medium       |
+| t3.large      | 2000-5000    | Production large        |
 
 ## Cleanup
 
