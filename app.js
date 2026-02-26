@@ -9,6 +9,12 @@ const xss = require("xss");
 const { logInfo, logError } = require("./logger"); // Structured logging
 const db = require("./db"); // Database
 const app = express();
+const enableHttpsUpgrade =
+  process.env.CSP_UPGRADE_INSECURE_REQUESTS === "true";
+const cspFormActionOrigins = (process.env.CSP_FORM_ACTION_ORIGINS || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 // Deployment metadata for visibility in metrics and UI
 const deploymentTime = new Date().toISOString();
@@ -216,10 +222,10 @@ app.use(
         styleSrc: ["'self'", "'unsafe-inline'"],
         scriptSrc: ["'self'", "'unsafe-inline'"],
         scriptSrcAttr: ["'unsafe-inline'"],
-        formAction: ["'self'"],
+        formAction: ["'self'", ...cspFormActionOrigins],
         connectSrc: ["'self'"],
         imgSrc: ["'self'", "data:"],
-        upgradeInsecureRequests: [],
+        ...(enableHttpsUpgrade ? { upgradeInsecureRequests: [] } : {}),
       },
     },
     hsts: false,

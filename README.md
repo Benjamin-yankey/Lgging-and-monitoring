@@ -76,6 +76,8 @@ Set these for production deployments:
 ```bash
 export ALLOWED_ORIGINS="https://yourdomain.com,https://app.yourdomain.com"
 export APP_VERSION="1.0.0"
+export CSP_UPGRADE_INSECURE_REQUESTS="true"  # enable only when serving over HTTPS end-to-end
+export CSP_FORM_ACTION_ORIGINS="https://yourdomain.com"  # optional extra form-action allowlist
 ```
 
 ## Prerequisites
