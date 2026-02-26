@@ -219,7 +219,7 @@ app.use(
         formAction: ["'self'"],
         connectSrc: ["'self'"],
         imgSrc: ["'self'", "data:"],
-        upgradeInsecureRequests: null,
+        upgradeInsecureRequests: [],
       },
     },
     hsts: false,
