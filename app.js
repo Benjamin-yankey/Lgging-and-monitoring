@@ -230,7 +230,8 @@ app.use(
 app.use(
   cors({
     origin: process.env.ALLOWED_ORIGINS?.split(",") || [
-      "http://localhost:5001",
+      "http://localhost:3000",
+      "http://localhost:5000",
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
@@ -872,7 +873,7 @@ app.get("/metrics", async (req, res) => {
 });
 
 if (require.main === module) {
-  const port = process.env.PORT || 5001;
+  const port = process.env.PORT || 5000;
   app.listen(port, "0.0.0.0", () => {
     logInfo(`Server running on port ${port}`);
   });
