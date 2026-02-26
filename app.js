@@ -7,6 +7,7 @@ const { body, param, validationResult } = require("express-validator");
 const cors = require("cors");
 const xss = require("xss");
 const { logInfo, logError } = require("./logger"); // Structured logging
+const db = require("./db"); // Database
 const app = express();
 
 // Deployment metadata for visibility in metrics and UI
@@ -130,9 +131,74 @@ const httpRequestsInFlight = new client.Gauge({
   registers: [register],
 });
 
-// ─── In-memory storage ───────────────────────────────────────────────────────
-const todos = [];
+// ─── Helper Functions ───────────────────────────────────────────────────────
 let requestCount = 0;
+
+function getAllTodos() {
+  return new Promise((resolve, reject) => {
+    db.all('SELECT * FROM todos ORDER BY createdAt DESC', [], (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows || []);
+    });
+  });
+}
+
+function getTodoById(id) {
+  return new Promise((resolve, reject) => {
+    db.get('SELECT * FROM todos WHERE id = ?', [id], (err, row) => {
+      if (err) reject(err);
+      else resolve(row);
+    });
+  });
+}
+
+function getTodoMetrics() {
+  return new Promise((resolve, reject) => {
+    let active, completed;
+    db.get('SELECT COUNT(*) as count FROM todos WHERE completed = 0', [], (err, row) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      active = row.count;
+      db.get('SELECT COUNT(*) as count FROM todos WHERE completed = 1', [], (err, row2) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        completed = row2.count;
+        resolve({ active, completed, total: active + completed });
+      });
+    });
+  });
+}
+
+function runDbQuery(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.run(sql, params, function(err) {
+      if (err) reject(err);
+      else resolve({ lastID: this.lastID, changes: this.changes });
+    });
+  });
+}
+
+function getDbAll(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.all(sql, params, (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows || []);
+    });
+  });
+}
+
+function getDbOne(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) reject(err);
+      else resolve(row);
+    });
+  });
+}
 
 app.use(helmet({
   contentSecurityPolicy: {
@@ -235,22 +301,20 @@ app.use((req, res, next) => {
   next();
 });
 
-// Helper to update todo metrics
-function updateTodoMetrics() {
-  const activeTodos = todos.filter((t) => !t.completed);
-  const completedTodos = todos.filter((t) => t.completed);
+async function updateTodoMetrics() {
+  try {
+    const { active, completed } = await getTodoMetrics();
+    todoCountActive.set(active);
+    todoCountCompleted.set(completed);
 
-  todoCountActive.set(activeTodos.length);
-  todoCountCompleted.set(completedTodos.length);
-
-  // Update category counts
-  const categories = ["work", "personal", "shopping", "health", "other"];
-  categories.forEach((cat) => {
-    const count = todos.filter(
-      (t) => t.category === cat && !t.completed,
-    ).length;
-    todoCountByCategory.labels(cat).set(count);
-  });
+    const categories = ["work", "personal", "shopping", "health", "other"];
+    for (const cat of categories) {
+      const row = await getDbOne('SELECT COUNT(*) as count FROM todos WHERE category = ? AND completed = 0', [cat]);
+      todoCountByCategory.labels(cat).set(row.count);
+    }
+  } catch (err) {
+    logError("Failed to update todo metrics", { error: err.message });
+  }
 }
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
@@ -303,6 +367,10 @@ app.get("/", (req, res) => {
         <h1>✓ Todo List</h1>
         <p class="status">✓ System Online</p>
         
+        <div class="form-group" style="margin-bottom: 20px;">
+            <input type="text" id="searchInput" placeholder="Search todos by task or description..." style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 14px;">
+        </div>
+        
         <div class="stats">
             <div class="stat-card">
                 <div class="stat-value" id="activeTodos">0</div>
@@ -331,10 +399,13 @@ app.get("/", (req, res) => {
                 <input type="text" id="task" placeholder="What needs to be done?" required>
             </div>
             <div class="form-group">
+                <label>Description (optional)</label>
+                <input type="text" id="description" placeholder="Add more details...">
+            </div>
+            <div class="form-group">
                 <label>Category</label>
                 <select id="category" required>
-                    <option value="">Select Category</option>
-                    <option value="work">Work</option>
+                    <option value="work" selected>Work</option>
                     <option value="personal">Personal</option>
                     <option value="shopping">Shopping</option>
                     <option value="health">Health</option>
@@ -369,11 +440,16 @@ app.get("/", (req, res) => {
 
     <script>
         let currentFilter = 'all';
+        let allTodos = [];
         
-        function loadTodos() {
-            fetch('/api/todos')
+        function loadTodos(search = '') {
+            const url = new URL('/api/todos', window.location.origin);
+            if (search) url.searchParams.set('search', search);
+            
+            fetch(url)
                 .then(r => r.json())
                 .then(data => {
+                    allTodos = data.todos;
                     document.getElementById('activeTodos').textContent = data.active;
                     document.getElementById('completedTodos').textContent = data.completed;
                     renderTodos(data.todos);
@@ -382,8 +458,8 @@ app.get("/", (req, res) => {
 
         function renderTodos(todos) {
             const filtered = currentFilter === 'all' ? todos : 
-                            currentFilter === 'active' ? todos.filter(t => !t.completed) :
-                            todos.filter(t => t.completed);
+                            currentFilter === 'active' ? todos.filter(t => t.completed === 0) :
+                            todos.filter(t => t.completed === 1);
             
             const html = filtered.map(t => {
                 let dueDateHtml = '';
@@ -395,17 +471,22 @@ app.get("/", (req, res) => {
                     const diffDays = Math.ceil((dueDateOnly - today) / (1000 * 60 * 60 * 24));
                     
                     let dueClass = 'todo-due';
-                    if (!t.completed && diffDays < 0) dueClass += ' overdue';
-                    else if (!t.completed && diffDays <= 2) dueClass += ' soon';
+                    if (t.completed === 0 && diffDays < 0) dueClass += ' overdue';
+                    else if (t.completed === 0 && diffDays <= 2) dueClass += ' soon';
                     
                     const dateStr = due.toLocaleDateString();
                     const label = diffDays < 0 ? 'Overdue' : diffDays === 0 ? 'Today' : diffDays === 1 ? 'Tomorrow' : dateStr;
                     dueDateHtml = '<span class="' + dueClass + '">' + label + '</span>';
                 }
                 
+                const descHtml = t.description ? '<div style="font-size: 12px; color: #666; margin-top: 5px;">' + t.description + '</div>' : '';
+                
                 return '<div class="todo-item ' + (t.completed ? 'completed' : '') + '">' +
                     '<input type="checkbox" class="todo-checkbox" ' + (t.completed ? 'checked' : '') + ' onchange="toggleTodo(' + t.id + ')">' +
+                    '<div style="flex-grow: 1;">' +
                     '<span class="todo-text">' + t.task + '</span>' +
+                    descHtml +
+                    '</div>' +
                     dueDateHtml +
                     '<span class="todo-priority priority-' + t.priority + '">' + t.priority + '</span>' +
                     '<button class="delete-btn" onclick="deleteTodo(' + t.id + ')">Delete</button>' +
@@ -428,15 +509,26 @@ app.get("/", (req, res) => {
                 task: document.getElementById('task').value,
                 category: document.getElementById('category').value,
                 priority: document.getElementById('priority').value,
+                description: document.getElementById('description').value || '',
                 dueDate: dueDateValue || null
             };
-            await fetch('/api/todos', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(data)
-            });
-            e.target.reset();
-            loadTodos();
+            try {
+                const response = await fetch('/api/todos', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                if (!response.ok) {
+                    alert('Error: ' + (result.errors ? result.errors.map(e => e.msg).join(', ') : result.error || 'Failed to create todo'));
+                    return;
+                }
+                e.target.reset();
+                document.getElementById('category').value = 'work';
+                loadTodos();
+            } catch (err) {
+                alert('Error: ' + err.message);
+            }
         };
 
         async function toggleTodo(id) {
@@ -455,134 +547,229 @@ app.get("/", (req, res) => {
             loadTodos();
         }
 
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            loadTodos(e.target.value);
+        });
+
         loadTodos();
-        setInterval(loadTodos, 5000);
+        setInterval(() => loadTodos(), 5000);
     </script>
 </body>
 </html>
     `);
 });
 
-app.get("/api/todos", (req, res) => {
-  logInfo("Fetching todos", { count: todos.length });
-  const active = todos.filter((t) => !t.completed).length;
-  const completed = todos.filter((t) => t.completed).length;
-  res.json({
-    total: todos.length,
-    active: active,
-    completed: completed,
-    todos: todos.slice().reverse(),
-  });
+app.get("/api/todos", async (req, res) => {
+  try {
+    const { search, category, priority, completed } = req.query;
+    let query = 'SELECT * FROM todos WHERE 1=1';
+    const params = [];
+
+    if (search) {
+      query += ' AND (task LIKE ? OR description LIKE ?)';
+      params.push(`%${search}%`, `%${search}%`);
+    }
+    if (category) {
+      query += ' AND category = ?';
+      params.push(category);
+    }
+    if (priority) {
+      query += ' AND priority = ?';
+      params.push(priority);
+    }
+    if (completed !== undefined) {
+      query += ' AND completed = ?';
+      params.push(completed === 'true' ? 1 : 0);
+    }
+
+    query += ' ORDER BY createdAt DESC';
+
+    const allTodos = await getDbAll(query, params);
+    const { active, completed: completedCount, total } = await getTodoMetrics();
+
+    logInfo("Fetching todos", { count: allTodos.length, filters: { search, category, priority } });
+    res.json({
+      total: total,
+      active: active,
+      completed: completedCount,
+      todos: allTodos,
+    });
+  } catch (err) {
+    logError("Failed to fetch todos", { error: err.message });
+    res.status(500).json({ success: false, error: "Failed to fetch todos" });
+  }
 });
 
 app.post("/api/todos", [
   body('task').trim().notEmpty().isLength({ max: 500 }).withMessage('Task is required and must be less than 500 characters'),
+  body('description').optional().trim().isLength({ max: 2000 }).withMessage('Description must be less than 2000 characters'),
   body('category').trim().notEmpty().isIn(['work', 'personal', 'shopping', 'health', 'other']).withMessage('Invalid category'),
   body('priority').optional().isIn(['low', 'medium', 'high']).withMessage('Invalid priority'),
   body('dueDate').optional().isISO8601().toDate().withMessage('Invalid due date'),
   strictLimiter,
-], (req, res) => {
+], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ success: false, errors: errors.array() });
   }
 
-  const { task, category, priority, dueDate } = req.body;
+  const { task, description, category, priority, dueDate } = req.body;
+  const now = new Date().toISOString();
 
-  const entry = {
-    task: xss(task),
-    category: xss(category),
-    priority: priority || 'low',
-    dueDate: dueDate || null,
-    completed: false,
-    timestamp: new Date().toISOString(),
-    id: Date.now(),
-  };
-  todos.push(entry);
+  try {
+    const info = await runDbQuery(`
+      INSERT INTO todos (task, description, category, priority, dueDate, completed, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, 0, ?, ?)
+    `, [
+      xss(task),
+      description ? xss(description) : null,
+      xss(category),
+      priority || 'medium',
+      dueDate || null,
+      now,
+      now
+    ]);
 
-  // ── Record business metrics ──────────────────────────────────────────────
-  // These help us understand user behavior beyond just technical performance
-  todoCreatedTotal.labels(priority || "low").inc();
-  updateTodoMetrics();
-  // ─────────────────────────────────────────────────────────────────────────
+    const entry = await getTodoById(info.lastID);
 
-  logInfo(`Todo created: ${task}`, {
-    priority: priority || "low",
-    category
-  });
-  res.json({ success: true, entry });
+    todoCreatedTotal.labels(priority || "medium").inc();
+    updateTodoMetrics();
+
+    logInfo(`Todo created: ${task}`, {
+      priority: priority || "medium",
+      category,
+      id: info.lastID
+    });
+    res.json({ success: true, entry });
+  } catch (err) {
+    logError("Failed to create todo", { error: err.message });
+    res.status(500).json({ success: false, error: "Failed to create todo" });
+  }
 });
 
 app.put("/api/todos/:id/toggle", [
   param('id').isInt({ min: 1 }).withMessage('Invalid todo ID'),
-], (req, res) => {
+], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ success: false, errors: errors.array() });
   }
 
   const id = parseInt(req.params.id);
-  const todo = todos.find((t) => t.id === id);
 
-  if (!todo) {
-    return res.status(404).json({ success: false, error: "Todo not found" });
+  try {
+    const todo = await getTodoById(id);
+
+    if (!todo) {
+      return res.status(404).json({ success: false, error: "Todo not found" });
+    }
+
+    const wasCompleted = todo.completed === 1;
+    const newCompleted = wasCompleted ? 0 : 1;
+    const completedAt = newCompleted ? new Date().toISOString() : null;
+    const now = new Date().toISOString();
+
+    await runDbQuery(`
+      UPDATE todos 
+      SET completed = ?, completedAt = ?, updatedAt = ?
+      WHERE id = ?
+    `, [newCompleted, completedAt, now, id]);
+
+    const updatedTodo = await getTodoById(id);
+
+    if (newCompleted && !wasCompleted) {
+      todoCompletedTotal.labels(todo.priority || "medium").inc();
+    }
+    updateTodoMetrics();
+
+    logInfo(`Todo toggled: ${todo.task}`, {
+      completed: newCompleted === 1
+    });
+    res.json({ success: true, todo: updatedTodo });
+  } catch (err) {
+    logError("Failed to toggle todo", { error: err.message });
+    res.status(500).json({ success: false, error: "Failed to toggle todo" });
   }
-
-  const wasCompleted = todo.completed;
-  todo.completed = !todo.completed;
-  todo.completedAt = todo.completed ? new Date().toISOString() : null;
-
-  // ── Record business metrics ──────────────────────────────────────────────
-  if (todo.completed && !wasCompleted) {
-    todoCompletedTotal.labels(todo.priority || "low").inc();
-  }
-  updateTodoMetrics();
-  // ─────────────────────────────────────────────────────────────────────────
-
-  logInfo(`Todo toggled: ${todo.task}`, {
-    completed: todo.completed
-  });
-  res.json({ success: true, todo });
 });
 
 app.delete("/api/todos/:id", [
   param('id').isInt({ min: 1 }).withMessage('Invalid todo ID'),
   strictLimiter,
-], (req, res) => {
+], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ success: false, errors: errors.array() });
   }
 
   const id = parseInt(req.params.id);
-  const index = todos.findIndex((t) => t.id === id);
 
-  if (index === -1) {
-    return res.status(404).json({ success: false, error: "Todo not found" });
+  try {
+    const todo = await getTodoById(id);
+
+    if (!todo) {
+      return res.status(404).json({ success: false, error: "Todo not found" });
+    }
+
+    await runDbQuery('DELETE FROM todos WHERE id = ?', [id]);
+
+    todoDeletedTotal.inc();
+    updateTodoMetrics();
+
+    logInfo(`Todo deleted: ${todo.task}`, { id });
+    res.json({ success: true });
+  } catch (err) {
+    logError("Failed to delete todo", { error: err.message });
+    res.status(500).json({ success: false, error: "Failed to delete todo" });
   }
-
-  const deleted = todos.splice(index, 1)[0];
-
-  // ── Record business metrics ──────────────────────────────────────────────
-  todoDeletedTotal.inc();
-  updateTodoMetrics();
-  // ─────────────────────────────────────────────────────────────────────────
-
-  logInfo(`Todo deleted: ${deleted.task}`);
-  res.json({ success: true });
 });
 
-app.get("/api/info", (req, res) => {
-  logInfo("System info requested");
-  res.json({
-    version,
-    deploymentTime,
-    status: "running",
-    totalTodos: todos.length,
-    activeTodos: todos.filter((t) => !t.completed).length,
-    completedTodos: todos.filter((t) => t.completed).length,
-    totalRequests: requestCount,
-  });
+app.get("/api/info", async (req, res) => {
+  try {
+    const { active, completed, total } = await getTodoMetrics();
+    logInfo("System info requested");
+    res.json({
+      version,
+      deploymentTime,
+      status: "running",
+      totalTodos: total,
+      activeTodos: active,
+      completedTodos: completed,
+      totalRequests: requestCount,
+    });
+  } catch (err) {
+    logError("Failed to get system info", { error: err.message });
+    res.status(500).json({ error: "Failed to get system info" });
+  }
+});
+
+app.get("/api/stats", async (req, res) => {
+  try {
+    const categories = ["work", "personal", "shopping", "health", "other"];
+    const stats = {
+      byCategory: {},
+      byPriority: {},
+      overdue: 0,
+    };
+
+    for (const cat of categories) {
+      const row = await getDbOne('SELECT COUNT(*) as count FROM todos WHERE category = ? AND completed = 0', [cat]);
+      stats.byCategory[cat] = row.count;
+    }
+
+    for (const pri of ['low', 'medium', 'high']) {
+      const row = await getDbOne('SELECT COUNT(*) as count FROM todos WHERE priority = ? AND completed = 0', [pri]);
+      stats.byPriority[pri] = row.count;
+    }
+
+    const now = new Date().toISOString().split('T')[0];
+    const overdueRow = await getDbOne('SELECT COUNT(*) as count FROM todos WHERE dueDate < ? AND completed = 0', [now]);
+    stats.overdue = overdueRow.count;
+
+    res.json(stats);
+  } catch (err) {
+    logError("Failed to get stats", { error: err.message });
+    res.status(500).json({ error: "Failed to get statistics" });
+  }
 });
 
 app.get("/health", (req, res) => {
