@@ -136,7 +136,7 @@ let requestCount = 0;
 
 function getAllTodos() {
   return new Promise((resolve, reject) => {
-    db.all('SELECT * FROM todos ORDER BY createdAt DESC', [], (err, rows) => {
+    db.all("SELECT * FROM todos ORDER BY createdAt DESC", [], (err, rows) => {
       if (err) reject(err);
       else resolve(rows || []);
     });
@@ -145,7 +145,7 @@ function getAllTodos() {
 
 function getTodoById(id) {
   return new Promise((resolve, reject) => {
-    db.get('SELECT * FROM todos WHERE id = ?', [id], (err, row) => {
+    db.get("SELECT * FROM todos WHERE id = ?", [id], (err, row) => {
       if (err) reject(err);
       else resolve(row);
     });
@@ -155,27 +155,35 @@ function getTodoById(id) {
 function getTodoMetrics() {
   return new Promise((resolve, reject) => {
     let active, completed;
-    db.get('SELECT COUNT(*) as count FROM todos WHERE completed = 0', [], (err, row) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-      active = row.count;
-      db.get('SELECT COUNT(*) as count FROM todos WHERE completed = 1', [], (err, row2) => {
+    db.get(
+      "SELECT COUNT(*) as count FROM todos WHERE completed = 0",
+      [],
+      (err, row) => {
         if (err) {
           reject(err);
           return;
         }
-        completed = row2.count;
-        resolve({ active, completed, total: active + completed });
-      });
-    });
+        active = row.count;
+        db.get(
+          "SELECT COUNT(*) as count FROM todos WHERE completed = 1",
+          [],
+          (err, row2) => {
+            if (err) {
+              reject(err);
+              return;
+            }
+            completed = row2.count;
+            resolve({ active, completed, total: active + completed });
+          },
+        );
+      },
+    );
   });
 }
 
 function runDbQuery(sql, params = []) {
   return new Promise((resolve, reject) => {
-    db.run(sql, params, function(err) {
+    db.run(sql, params, function (err) {
       if (err) reject(err);
       else resolve({ lastID: this.lastID, changes: this.changes });
     });
@@ -200,30 +208,40 @@ function getDbOne(sql, params = []) {
   });
 }
 
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrcAttr: ["'unsafe-inline'"],
+        formAction: ["'self'"],
+        connectSrc: ["'self'"],
+        imgSrc: ["'self'", "data:"],
+      },
     },
-  },
-  hsts: false,
-  crossOriginOpenerPolicy: false,
-  originAgentCluster: false,
-}));
+    hsts: false,
+    crossOriginOpenerPolicy: false,
+    originAgentCluster: false,
+  }),
+);
 
-app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:5000'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true,
-  maxAge: 86400,
-}));
+app.use(
+  cors({
+    origin: process.env.ALLOWED_ORIGINS?.split(",") || [
+      "http://localhost:5001",
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
+    maxAge: 86400,
+  }),
+);
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
-  message: 'Too many requests from this IP, please try again later.',
+  message: "Too many requests from this IP, please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -231,15 +249,15 @@ const limiter = rateLimit({
 const strictLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
-  message: 'Too many requests from this IP, please try again later.',
+  message: "Too many requests from this IP, please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-app.use('/api/', limiter);
+app.use("/api/", limiter);
 
-app.use(express.json({ limit: '10kb' }));
-app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+app.use(express.json({ limit: "10kb" }));
+app.use(express.urlencoded({ extended: true, limit: "10kb" }));
 app.use(express.static("public"));
 
 // ─── Observability Middleware ───────────────────────────────────────────────
@@ -250,7 +268,7 @@ app.use((req, res, next) => {
   logInfo(`${req.method} ${req.path} - Request #${requestCount}`, {
     method: req.method,
     path: req.path,
-    requestNum: requestCount
+    requestNum: requestCount,
   });
 
   const start = Date.now();
@@ -307,7 +325,10 @@ async function updateTodoMetrics() {
 
     const categories = ["work", "personal", "shopping", "health", "other"];
     for (const cat of categories) {
-      const row = await getDbOne('SELECT COUNT(*) as count FROM todos WHERE category = ? AND completed = 0', [cat]);
+      const row = await getDbOne(
+        "SELECT COUNT(*) as count FROM todos WHERE category = ? AND completed = 0",
+        [cat],
+      );
       todoCountByCategory.labels(cat).set(row.count);
     }
   } catch (err) {
@@ -578,32 +599,35 @@ app.get("/", (req, res) => {
 app.get("/api/todos", async (req, res) => {
   try {
     const { search, category, priority, completed } = req.query;
-    let query = 'SELECT * FROM todos WHERE 1=1';
+    let query = "SELECT * FROM todos WHERE 1=1";
     const params = [];
 
     if (search) {
-      query += ' AND (task LIKE ? OR description LIKE ?)';
+      query += " AND (task LIKE ? OR description LIKE ?)";
       params.push(`%${search}%`, `%${search}%`);
     }
     if (category) {
-      query += ' AND category = ?';
+      query += " AND category = ?";
       params.push(category);
     }
     if (priority) {
-      query += ' AND priority = ?';
+      query += " AND priority = ?";
       params.push(priority);
     }
     if (completed !== undefined) {
-      query += ' AND completed = ?';
-      params.push(completed === 'true' ? 1 : 0);
+      query += " AND completed = ?";
+      params.push(completed === "true" ? 1 : 0);
     }
 
-    query += ' ORDER BY createdAt DESC';
+    query += " ORDER BY createdAt DESC";
 
     const allTodos = await getDbAll(query, params);
     const { active, completed: completedCount, total } = await getTodoMetrics();
 
-    logInfo("Fetching todos", { count: allTodos.length, filters: { search, category, priority } });
+    logInfo("Fetching todos", {
+      count: allTodos.length,
+      filters: { search, category, priority },
+    });
     res.json({
       total: total,
       active: active,
@@ -616,128 +640,164 @@ app.get("/api/todos", async (req, res) => {
   }
 });
 
-app.post("/api/todos", [
-  body('task').trim().notEmpty().isLength({ max: 500 }).withMessage('Task is required and must be less than 500 characters'),
-  body('description').optional().trim().isLength({ max: 2000 }).withMessage('Description must be less than 2000 characters'),
-  body('category').trim().notEmpty().isIn(['work', 'personal', 'shopping', 'health', 'other']).withMessage('Invalid category'),
-  body('priority').optional().isIn(['low', 'medium', 'high']).withMessage('Invalid priority'),
-  body('dueDate').optional().isISO8601().toDate().withMessage('Invalid due date'),
-  strictLimiter,
-], async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ success: false, errors: errors.array() });
-  }
-
-  const { task, description, category, priority, dueDate } = req.body;
-  const now = new Date().toISOString();
-
-  try {
-    const info = await runDbQuery(`
-      INSERT INTO todos (task, description, category, priority, dueDate, completed, createdAt, updatedAt)
-      VALUES (?, ?, ?, ?, ?, 0, ?, ?)
-    `, [
-      xss(task),
-      description ? xss(description) : null,
-      xss(category),
-      priority || 'medium',
-      dueDate || null,
-      now,
-      now
-    ]);
-
-    const entry = await getTodoById(info.lastID);
-
-    todoCreatedTotal.labels(priority || "medium").inc();
-    updateTodoMetrics();
-
-    logInfo(`Todo created: ${task}`, {
-      priority: priority || "medium",
-      category,
-      id: info.lastID
-    });
-    res.json({ success: true, entry });
-  } catch (err) {
-    logError("Failed to create todo", { error: err.message });
-    res.status(500).json({ success: false, error: "Failed to create todo" });
-  }
-});
-
-app.put("/api/todos/:id/toggle", [
-  param('id').isInt({ min: 1 }).withMessage('Invalid todo ID'),
-], async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ success: false, errors: errors.array() });
-  }
-
-  const id = parseInt(req.params.id);
-
-  try {
-    const todo = await getTodoById(id);
-
-    if (!todo) {
-      return res.status(404).json({ success: false, error: "Todo not found" });
+app.post(
+  "/api/todos",
+  [
+    body("task")
+      .trim()
+      .notEmpty()
+      .isLength({ max: 500 })
+      .withMessage("Task is required and must be less than 500 characters"),
+    body("description")
+      .optional()
+      .trim()
+      .isLength({ max: 2000 })
+      .withMessage("Description must be less than 2000 characters"),
+    body("category")
+      .trim()
+      .notEmpty()
+      .isIn(["work", "personal", "shopping", "health", "other"])
+      .withMessage("Invalid category"),
+    body("priority")
+      .optional()
+      .isIn(["low", "medium", "high"])
+      .withMessage("Invalid priority"),
+    body("dueDate")
+      .optional()
+      .isISO8601()
+      .toDate()
+      .withMessage("Invalid due date"),
+    strictLimiter,
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, errors: errors.array() });
     }
 
-    const wasCompleted = todo.completed === 1;
-    const newCompleted = wasCompleted ? 0 : 1;
-    const completedAt = newCompleted ? new Date().toISOString() : null;
+    const { task, description, category, priority, dueDate } = req.body;
     const now = new Date().toISOString();
 
-    await runDbQuery(`
+    try {
+      const info = await runDbQuery(
+        `
+      INSERT INTO todos (task, description, category, priority, dueDate, completed, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, 0, ?, ?)
+    `,
+        [
+          xss(task),
+          description ? xss(description) : null,
+          xss(category),
+          priority || "medium",
+          dueDate || null,
+          now,
+          now,
+        ],
+      );
+
+      const entry = await getTodoById(info.lastID);
+
+      todoCreatedTotal.labels(priority || "medium").inc();
+      updateTodoMetrics();
+
+      logInfo(`Todo created: ${task}`, {
+        priority: priority || "medium",
+        category,
+        id: info.lastID,
+      });
+      res.json({ success: true, entry });
+    } catch (err) {
+      logError("Failed to create todo", { error: err.message });
+      res.status(500).json({ success: false, error: "Failed to create todo" });
+    }
+  },
+);
+
+app.put(
+  "/api/todos/:id/toggle",
+  [param("id").isInt({ min: 1 }).withMessage("Invalid todo ID")],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, errors: errors.array() });
+    }
+
+    const id = parseInt(req.params.id);
+
+    try {
+      const todo = await getTodoById(id);
+
+      if (!todo) {
+        return res
+          .status(404)
+          .json({ success: false, error: "Todo not found" });
+      }
+
+      const wasCompleted = todo.completed === 1;
+      const newCompleted = wasCompleted ? 0 : 1;
+      const completedAt = newCompleted ? new Date().toISOString() : null;
+      const now = new Date().toISOString();
+
+      await runDbQuery(
+        `
       UPDATE todos 
       SET completed = ?, completedAt = ?, updatedAt = ?
       WHERE id = ?
-    `, [newCompleted, completedAt, now, id]);
+    `,
+        [newCompleted, completedAt, now, id],
+      );
 
-    const updatedTodo = await getTodoById(id);
+      const updatedTodo = await getTodoById(id);
 
-    if (newCompleted && !wasCompleted) {
-      todoCompletedTotal.labels(todo.priority || "medium").inc();
+      if (newCompleted && !wasCompleted) {
+        todoCompletedTotal.labels(todo.priority || "medium").inc();
+      }
+      updateTodoMetrics();
+
+      logInfo(`Todo toggled: ${todo.task}`, {
+        completed: newCompleted === 1,
+      });
+      res.json({ success: true, todo: updatedTodo });
+    } catch (err) {
+      logError("Failed to toggle todo", { error: err.message });
+      res.status(500).json({ success: false, error: "Failed to toggle todo" });
     }
-    updateTodoMetrics();
+  },
+);
 
-    logInfo(`Todo toggled: ${todo.task}`, {
-      completed: newCompleted === 1
-    });
-    res.json({ success: true, todo: updatedTodo });
-  } catch (err) {
-    logError("Failed to toggle todo", { error: err.message });
-    res.status(500).json({ success: false, error: "Failed to toggle todo" });
-  }
-});
-
-app.delete("/api/todos/:id", [
-  param('id').isInt({ min: 1 }).withMessage('Invalid todo ID'),
-  strictLimiter,
-], async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ success: false, errors: errors.array() });
-  }
-
-  const id = parseInt(req.params.id);
-
-  try {
-    const todo = await getTodoById(id);
-
-    if (!todo) {
-      return res.status(404).json({ success: false, error: "Todo not found" });
+app.delete(
+  "/api/todos/:id",
+  [param("id").isInt({ min: 1 }).withMessage("Invalid todo ID"), strictLimiter],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, errors: errors.array() });
     }
 
-    await runDbQuery('DELETE FROM todos WHERE id = ?', [id]);
+    const id = parseInt(req.params.id);
 
-    todoDeletedTotal.inc();
-    updateTodoMetrics();
+    try {
+      const todo = await getTodoById(id);
 
-    logInfo(`Todo deleted: ${todo.task}`, { id });
-    res.json({ success: true });
-  } catch (err) {
-    logError("Failed to delete todo", { error: err.message });
-    res.status(500).json({ success: false, error: "Failed to delete todo" });
-  }
-});
+      if (!todo) {
+        return res
+          .status(404)
+          .json({ success: false, error: "Todo not found" });
+      }
+
+      await runDbQuery("DELETE FROM todos WHERE id = ?", [id]);
+
+      todoDeletedTotal.inc();
+      updateTodoMetrics();
+
+      logInfo(`Todo deleted: ${todo.task}`, { id });
+      res.json({ success: true });
+    } catch (err) {
+      logError("Failed to delete todo", { error: err.message });
+      res.status(500).json({ success: false, error: "Failed to delete todo" });
+    }
+  },
+);
 
 app.get("/api/info", async (req, res) => {
   try {
@@ -768,17 +828,26 @@ app.get("/api/stats", async (req, res) => {
     };
 
     for (const cat of categories) {
-      const row = await getDbOne('SELECT COUNT(*) as count FROM todos WHERE category = ? AND completed = 0', [cat]);
+      const row = await getDbOne(
+        "SELECT COUNT(*) as count FROM todos WHERE category = ? AND completed = 0",
+        [cat],
+      );
       stats.byCategory[cat] = row.count;
     }
 
-    for (const pri of ['low', 'medium', 'high']) {
-      const row = await getDbOne('SELECT COUNT(*) as count FROM todos WHERE priority = ? AND completed = 0', [pri]);
+    for (const pri of ["low", "medium", "high"]) {
+      const row = await getDbOne(
+        "SELECT COUNT(*) as count FROM todos WHERE priority = ? AND completed = 0",
+        [pri],
+      );
       stats.byPriority[pri] = row.count;
     }
 
-    const now = new Date().toISOString().split('T')[0];
-    const overdueRow = await getDbOne('SELECT COUNT(*) as count FROM todos WHERE dueDate < ? AND completed = 0', [now]);
+    const now = new Date().toISOString().split("T")[0];
+    const overdueRow = await getDbOne(
+      "SELECT COUNT(*) as count FROM todos WHERE dueDate < ? AND completed = 0",
+      [now],
+    );
     stats.overdue = overdueRow.count;
 
     res.json(stats);
@@ -803,7 +872,7 @@ app.get("/metrics", async (req, res) => {
 });
 
 if (require.main === module) {
-  const port = process.env.PORT || 5000;
+  const port = process.env.PORT || 5001;
   app.listen(port, "0.0.0.0", () => {
     logInfo(`Server running on port ${port}`);
   });
