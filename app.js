@@ -9,8 +9,7 @@ const xss = require("xss");
 const { logInfo, logError } = require("./logger"); // Structured logging
 const db = require("./db"); // Database
 const app = express();
-const enableHttpsUpgrade =
-  process.env.CSP_UPGRADE_INSECURE_REQUESTS === "true";
+const enableHttpsUpgrade = process.env.CSP_UPGRADE_INSECURE_REQUESTS === "true";
 const cspFormActionOrigins = (process.env.CSP_FORM_ACTION_ORIGINS || "")
   .split(",")
   .map((origin) => origin.trim())
@@ -474,7 +473,12 @@ app.get("/", (req, res) => {
         let allTodos = [];
 
         function getApiUrl(path) {
-            return new URL(path, window.location.origin);
+            // Force HTTP for API calls - the server doesn't support HTTPS
+            let origin = window.location.origin;
+            if (origin.startsWith('https://')) {
+                origin = origin.replace('https://', 'http://');
+            }
+            return new URL(path, origin);
         }
         
         function loadTodos(search = '') {
