@@ -75,6 +75,15 @@ resource "aws_security_group" "app" {
     cidr_blocks = var.allowed_ips
   }
 
+  # Ensure in-VPC SSH works from Jenkins (including containerized Jenkins agents).
+  ingress {
+    description = "SSH from VPC internal network"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
   ingress {
     description = "Application Port"
     from_port   = 5000
