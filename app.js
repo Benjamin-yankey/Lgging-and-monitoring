@@ -208,11 +208,9 @@ app.use(helmet({
       scriptSrc: ["'self'", "'unsafe-inline'"],
     },
   },
-  hsts: {
-    maxAge: 31536000,
-    includeSubDomains: true,
-    preload: true,
-  },
+  hsts: false,
+  crossOriginOpenerPolicy: false,
+  originAgentCluster: false,
 }));
 
 app.use(cors({
@@ -441,9 +439,18 @@ app.get("/", (req, res) => {
     <script>
         let currentFilter = 'all';
         let allTodos = [];
+
+        function getApiUrl(path) {
+            let origin = window.location.origin;
+            // Always ensure the protocol is http for API calls on IP-based origin
+            if (/^https?:\/\/(\d{1,3}\.){3}\d{1,3}/.test(origin)) {
+                origin = origin.replace('https://', 'http://');
+            }
+            return new URL(path, origin);
+        }
         
         function loadTodos(search = '') {
-            const url = new URL('/api/todos', window.location.origin);
+            const url = getApiUrl('/api/todos');
             if (search) url.searchParams.set('search', search);
             
             fetch(url)
@@ -453,7 +460,8 @@ app.get("/", (req, res) => {
                     document.getElementById('activeTodos').textContent = data.active;
                     document.getElementById('completedTodos').textContent = data.completed;
                     renderTodos(data.todos);
-                });
+                })
+                .catch(err => console.error('Load Error:', err));
         }
 
         function renderTodos(todos) {
@@ -513,7 +521,7 @@ app.get("/", (req, res) => {
                 dueDate: dueDateValue || null
             };
             try {
-                const response = await fetch('/api/todos', {
+                const response = await fetch(getApiUrl('/api/todos'), {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(data)
@@ -532,19 +540,27 @@ app.get("/", (req, res) => {
         };
 
         async function toggleTodo(id) {
-            await fetch('/api/todos/' + id + '/toggle', {
-                method: 'PUT',
-                headers: {'Content-Type': 'application/json'}
-            });
-            loadTodos();
+            try {
+                await fetch(getApiUrl('/api/todos/' + id + '/toggle'), {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                loadTodos();
+            } catch (err) {
+                console.error('Toggle Error:', err);
+            }
         }
 
         async function deleteTodo(id) {
-            await fetch('/api/todos/' + id, {
-                method: 'DELETE',
-                headers: {'Content-Type': 'application/json'}
-            });
-            loadTodos();
+            try {
+                await fetch(getApiUrl('/api/todos/' + id), {
+                    method: 'DELETE',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                loadTodos();
+            } catch (err) {
+                console.error('Delete Error:', err);
+            }
         }
 
         document.getElementById('searchInput').addEventListener('input', (e) => {
