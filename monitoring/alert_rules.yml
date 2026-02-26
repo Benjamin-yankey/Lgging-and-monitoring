@@ -2,6 +2,7 @@ groups:
   - name: application_alerts
     interval: 30s
     rules:
+      # ── HTTP Metrics Alerts ─────────────────────────────────────────────────
       - alert: HighErrorRate
         expr: (rate(http_errors_total[10m]) / rate(http_requests_total[10m])) > 0.05
         for: 10m
@@ -28,3 +29,107 @@ groups:
         annotations:
           summary: "Instance {{ $labels.instance }} down"
           description: "{{ $labels.job }} has been down for more than 1 minute"
+
+      # ── Resource Usage Alerts ────────────────────────────────────────────────
+      - alert: HighMemoryUsage
+        expr: process_resident_memory_bytes / 1024 / 1024 > 500
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is {{ $value }}MB (threshold: 500MB)"
+
+      - alert: HighCPUUsage
+        expr: rate(process_cpu_seconds_total[5m]) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is {{ $value }}% (threshold: 80%)"
+
+      - alert: MemoryLeakSuspected
+        expr: increase(process_resident_memory_bytes[1h]) > 200 * 1024 * 1024
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Possible memory leak detected"
+          description: "Memory increased by {{ $value | humanize }} in the last hour"
+
+      # ── Request Flow Alerts ─────────────────────────────────────────────────
+      - alert: RequestQueueOverflow
+        expr: sum(http_requests_in_flight) > 50
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Request queue overflow"
+          description: "{{ $value }} requests in flight (threshold: 50)"
+
+      - alert: HighRequestSize
+        expr: histogram_quantile(0.95, rate(http_request_size_bytes_bucket[5m])) > 8000
+        for: 5m
+        labels:
+          severity: info
+        annotations:
+          summary: "Large request size detected"
+          description: "95th percentile request size is {{ $value }}bytes"
+
+      - alert: HighResponseSize
+        expr: histogram_quantile(0.95, rate(http_response_size_bytes_bucket[5m])) > 40000
+        for: 5m
+        labels:
+          severity: info
+        annotations:
+          summary: "Large response size detected"
+          description: "95th percentile response size is {{ $value }}bytes"
+
+      # ── Business Metrics Alerts ──────────────────────────────────────────────
+      - alert: TodoCreationSpike
+        expr: rate(todo_created_total[5m]) > 100
+        for: 2m
+        labels:
+          severity: info
+        annotations:
+          summary: "Unusual todo creation spike"
+          description: "{{ $value }} todos created per second (unusual)"
+
+      - alert: HighDeleteRate
+        expr: rate(todo_deleted_total[5m]) > 50
+        for: 5m
+        labels:
+          severity: info
+        annotations:
+          summary: "High todo deletion rate"
+          description: "{{ $value }} todos deleted per second"
+
+      # ── Infrastructure Alerts ───────────────────────────────────────────────
+      - alert: NodeExporterDown
+        expr: up{job="obs-node-exporter"} == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Node Exporter down"
+          description: "Cannot collect system metrics from {{ $labels.instance }}"
+
+      - alert: PrometheusTargetMissing
+        expr: up{job!="obs-prometheus"} == 0
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Prometheus target missing"
+          description: "{{ $labels.job }} at {{ $labels.instance }} is down"
+
+      # ── Rate Limiting Alerts ─────────────────────────────────────────────────
+      - alert: HighRateLimitRejections
+        expr: rate(http_requests_total{status_code="429"}[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High rate limit rejections"
+          description: "{{ $value }} requests rejected per second due to rate limiting"

@@ -2,10 +2,10 @@
   "id": null,
   "uid": "obs-todo-observability",
   "title": "Obs-Todo E2E Observability",
-  "tags": ["nodejs", "otel", "jaeger"],
+  "tags": ["nodejs", "otel", "jaeger", "prometheus"],
   "timezone": "browser",
   "schemaVersion": 36,
-  "version": 2,
+  "version": 3,
   "refresh": "10s",
   "time": { "from": "now-1h", "to": "now" },
   "panels": [
@@ -21,15 +21,28 @@
       "title": "Throughput (Rate)",
       "type": "stat",
       "datasource": "Prometheus",
-      "targets": [{ "expr": "sum(rate(http_requests_total{route!='/metrics'}[5m]))", "refId": "A" }],
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{route!='/metrics'}[5m]))",
+          "refId": "A"
+        }
+      ],
       "fieldConfig": {
         "defaults": {
-          "unit": "reqps", "decimals": 2,
+          "unit": "reqps",
+          "decimals": 2,
           "color": { "mode": "thresholds" },
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green", "value": null }]
+          }
         }
       },
-      "options": { "colorMode": "background", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
       "gridPos": { "h": 4, "w": 8, "x": 0, "y": 1 }
     },
     {
@@ -37,19 +50,32 @@
       "title": "Error Rate (Errors)",
       "type": "stat",
       "datasource": "Prometheus",
-      "targets": [{ "expr": "(sum(rate(http_errors_total[5m])) / sum(rate(http_requests_total{route!='/metrics'}[5m]))) * 100", "refId": "A" }],
+      "targets": [
+        {
+          "expr": "(sum(rate(http_errors_total[5m])) / sum(rate(http_requests_total{route!='/metrics'}[5m]))) * 100",
+          "refId": "A"
+        }
+      ],
       "fieldConfig": {
         "defaults": {
-          "unit": "percent", "decimals": 2,
-          "thresholds": { "mode": "absolute", "steps": [
-            { "color": "green", "value": null },
-            { "color": "yellow", "value": 1 },
-            { "color": "red", "value": 5 }
-          ]},
+          "unit": "percent",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          },
           "color": { "mode": "thresholds" }
         }
       },
-      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
       "gridPos": { "h": 4, "w": 8, "x": 8, "y": 1 }
     },
     {
@@ -57,27 +83,62 @@
       "title": "P95 Latency (Duration)",
       "type": "stat",
       "datasource": "Prometheus",
-      "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{route!='/metrics'}[5m])) by (le)) * 1000", "refId": "A" }],
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{route!='/metrics'}[5m])) by (le)) * 1000",
+          "refId": "A"
+        }
+      ],
       "fieldConfig": {
         "defaults": {
-          "unit": "ms", "decimals": 0,
-          "thresholds": { "mode": "absolute", "steps": [
-            { "color": "green", "value": null },
-            { "color": "yellow", "value": 300 },
-            { "color": "red", "value": 1000 }
-          ]},
+          "unit": "ms",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 300 },
+              { "color": "red", "value": 1000 }
+            ]
+          },
           "color": { "mode": "thresholds" }
         }
       },
-      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
       "gridPos": { "h": 4, "w": 8, "x": 16, "y": 1 }
+    },
+    {
+      "id": 101,
+      "type": "row",
+      "title": "HTTP Status Codes",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 }
+    },
+    {
+      "id": 4,
+      "title": "HTTP Responses by Status",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum by (status_code) (rate(http_requests_total{route!='/metrics'}[5m]))",
+          "legendFormat": "{{status_code}}",
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 6 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } }
     },
     {
       "id": 200,
       "type": "row",
       "title": "Distributed Tracing (Jaeger)",
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 }
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 12 }
     },
     {
       "id": 10,
@@ -85,7 +146,7 @@
       "type": "timeseries",
       "datasource": "Jaeger",
       "targets": [{ "query": "service=\"todo-app\"", "refId": "A" }],
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 6 },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 13 },
       "options": {
         "legend": { "displayMode": "list", "placement": "bottom" }
       }
@@ -95,16 +156,20 @@
       "type": "row",
       "title": "Resource Usage",
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 }
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 21 }
     },
     {
       "id": 20,
       "title": "CPU Usage",
       "type": "timeseries",
       "datasource": "Prometheus",
-      "targets": [{ "expr": "rate(process_cpu_seconds_total[5m]) * 100", "refId": "A" }],
-      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 } },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 15 }
+      "targets": [
+        { "expr": "rate(process_cpu_seconds_total[5m]) * 100", "refId": "A" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "percent", "min": 0, "max": 100 }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 22 }
     },
     {
       "id": 21,
@@ -112,11 +177,190 @@
       "type": "timeseries",
       "datasource": "Prometheus",
       "targets": [
-        { "expr": "nodejs_heap_size_used_bytes", "legendFormat": "Heap Used", "refId": "A" },
-        { "expr": "nodejs_heap_size_total_bytes", "legendFormat": "Heap Total", "refId": "B" }
+        {
+          "expr": "nodejs_heap_size_used_bytes",
+          "legendFormat": "Heap Used",
+          "refId": "A"
+        },
+        {
+          "expr": "nodejs_heap_size_total_bytes",
+          "legendFormat": "Heap Total",
+          "refId": "B"
+        },
+        {
+          "expr": "process_resident_memory_bytes",
+          "legendFormat": "RSS",
+          "refId": "C"
+        }
       ],
       "fieldConfig": { "defaults": { "unit": "bytes" } },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 15 }
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 22 }
+    },
+    {
+      "id": 400,
+      "type": "row",
+      "title": "Request Flow",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 30 }
+    },
+    {
+      "id": 30,
+      "title": "Requests In Flight",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(http_requests_in_flight) by (method, route)",
+          "legendFormat": "{{method}} {{route}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short", "min": 0 } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 31 }
+    },
+    {
+      "id": 31,
+      "title": "Request/Response Size",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_size_bytes_bucket[5m])) by (le, method, route))",
+          "legendFormat": "Request P95",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_response_size_bytes_bucket[5m])) by (le, method, route, status_code))",
+          "legendFormat": "Response P95",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bytes" } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 31 }
+    },
+    {
+      "id": 500,
+      "type": "row",
+      "title": "Business Metrics (Todos)",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 39 }
+    },
+    {
+      "id": 40,
+      "title": "Active vs Completed Todos",
+      "type": "stat",
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "todo_active_current", "refId": "A" },
+        { "expr": "todo_completed_current", "refId": "B" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 50 },
+              { "color": "red", "value": 100 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 40 }
+    },
+    {
+      "id": 41,
+      "title": "Todos by Category",
+      "type": "bargauge",
+      "datasource": "Prometheus",
+      "targets": [{ "expr": "todo_count_by_category", "refId": "A" }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 10 },
+              { "color": "red", "value": 20 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "showUnfilled": true
+      },
+      "gridPos": { "h": 4, "w": 16, "x": 8, "y": 40 }
+    },
+    {
+      "id": 42,
+      "title": "Todo Operations Rate",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "rate(todo_created_total[5m])",
+          "legendFormat": "Created",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(todo_completed_total[5m])",
+          "legendFormat": "Completed",
+          "refId": "B"
+        },
+        {
+          "expr": "rate(todo_deleted_total[5m])",
+          "legendFormat": "Deleted",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ops", "min": 0 } },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 44 }
+    },
+    {
+      "id": 600,
+      "type": "row",
+      "title": "Endpoint Performance",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 52 }
+    },
+    {
+      "id": 50,
+      "title": "Latency by Endpoint",
+      "type": "heatmap",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(rate(http_request_duration_seconds_bucket{route!='/metrics'}[5m])) by (le, route)",
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 53 }
+    },
+    {
+      "id": 51,
+      "title": "CPU Time by Endpoint",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(rate(http_request_cpu_seconds_total{route!='/metrics'}[5m])) by (route) * 1000",
+          "legendFormat": "{{route}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ms", "min": 0 } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 53 }
     }
   ]
 }
