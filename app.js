@@ -7,7 +7,6 @@ const { body, param, validationResult } = require("express-validator");
 const cors = require("cors");
 const xss = require("xss");
 const { logInfo, logError } = require("./logger"); // Structured logging
-const db = require("./db"); // Database
 const app = express();
 const enableHttpsUpgrade = process.env.CSP_UPGRADE_INSECURE_REQUESTS === "true";
 const cspFormActionOrigins = (process.env.CSP_FORM_ACTION_ORIGINS || "")
@@ -138,79 +137,44 @@ const httpRequestsInFlight = new client.Gauge({
 
 // ─── Helper Functions ───────────────────────────────────────────────────────
 let requestCount = 0;
+const todos = [];
+let nextTodoId = 1;
+const todoCategories = ["work", "personal", "shopping", "health", "other"];
+const todoPriorities = ["low", "medium", "high"];
 
 function getAllTodos() {
-  return new Promise((resolve, reject) => {
-    db.all("SELECT * FROM todos ORDER BY createdAt DESC", [], (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows || []);
-    });
-  });
+  return [...todos].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
 }
 
 function getTodoById(id) {
-  return new Promise((resolve, reject) => {
-    db.get("SELECT * FROM todos WHERE id = ?", [id], (err, row) => {
-      if (err) reject(err);
-      else resolve(row);
-    });
-  });
+  return todos.find((todo) => todo.id === id);
 }
 
 function getTodoMetrics() {
-  return new Promise((resolve, reject) => {
-    let active, completed;
-    db.get(
-      "SELECT COUNT(*) as count FROM todos WHERE completed = 0",
-      [],
-      (err, row) => {
-        if (err) {
-          reject(err);
-          return;
-        }
-        active = row.count;
-        db.get(
-          "SELECT COUNT(*) as count FROM todos WHERE completed = 1",
-          [],
-          (err, row2) => {
-            if (err) {
-              reject(err);
-              return;
-            }
-            completed = row2.count;
-            resolve({ active, completed, total: active + completed });
-          },
-        );
-      },
-    );
-  });
+  const completed = todos.filter((todo) => todo.completed === 1).length;
+  const active = todos.length - completed;
+  return { active, completed, total: todos.length };
 }
 
-function runDbQuery(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.run(sql, params, function (err) {
-      if (err) reject(err);
-      else resolve({ lastID: this.lastID, changes: this.changes });
-    });
-  });
+function getActiveCategoryCount(category) {
+  return todos.filter(
+    (todo) => todo.category === category && todo.completed === 0,
+  ).length;
 }
 
-function getDbAll(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows || []);
-    });
-  });
+function getActivePriorityCount(priority) {
+  return todos.filter(
+    (todo) => todo.priority === priority && todo.completed === 0,
+  ).length;
 }
 
-function getDbOne(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => {
-      if (err) reject(err);
-      else resolve(row);
-    });
-  });
+function getDateOnly(value) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toISOString().split("T")[0];
 }
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
@@ -330,17 +294,12 @@ app.use((req, res, next) => {
 
 async function updateTodoMetrics() {
   try {
-    const { active, completed } = await getTodoMetrics();
+    const { active, completed } = getTodoMetrics();
     todoCountActive.set(active);
     todoCountCompleted.set(completed);
 
-    const categories = ["work", "personal", "shopping", "health", "other"];
-    for (const cat of categories) {
-      const row = await getDbOne(
-        "SELECT COUNT(*) as count FROM todos WHERE category = ? AND completed = 0",
-        [cat],
-      );
-      todoCountByCategory.labels(cat).set(row.count);
+    for (const category of todoCategories) {
+      todoCountByCategory.labels(category).set(getActiveCategoryCount(category));
     }
   } catch (err) {
     logError("Failed to update todo metrics", { error: err.message });
@@ -607,33 +566,31 @@ app.get("/", (req, res) => {
     `);
 });
 
-app.get("/api/todos", async (req, res) => {
+app.get("/api/todos", (req, res) => {
   try {
     const { search, category, priority, completed } = req.query;
-    let query = "SELECT * FROM todos WHERE 1=1";
-    const params = [];
+    let allTodos = getAllTodos();
 
     if (search) {
-      query += " AND (task LIKE ? OR description LIKE ?)";
-      params.push(`%${search}%`, `%${search}%`);
+      const searchTerm = String(search).toLowerCase();
+      allTodos = allTodos.filter((todo) => {
+        const task = String(todo.task || "").toLowerCase();
+        const description = String(todo.description || "").toLowerCase();
+        return task.includes(searchTerm) || description.includes(searchTerm);
+      });
     }
     if (category) {
-      query += " AND category = ?";
-      params.push(category);
+      allTodos = allTodos.filter((todo) => todo.category === category);
     }
     if (priority) {
-      query += " AND priority = ?";
-      params.push(priority);
+      allTodos = allTodos.filter((todo) => todo.priority === priority);
     }
     if (completed !== undefined) {
-      query += " AND completed = ?";
-      params.push(completed === "true" ? 1 : 0);
+      const completedValue = completed === "true" ? 1 : 0;
+      allTodos = allTodos.filter((todo) => todo.completed === completedValue);
     }
 
-    query += " ORDER BY createdAt DESC";
-
-    const allTodos = await getDbAll(query, params);
-    const { active, completed: completedCount, total } = await getTodoMetrics();
+    const { active, completed: completedCount, total } = getTodoMetrics();
 
     logInfo("Fetching todos", {
       count: allTodos.length,
@@ -680,7 +637,7 @@ app.post(
       .withMessage("Invalid due date"),
     strictLimiter,
   ],
-  async (req, res) => {
+  (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ success: false, errors: errors.array() });
@@ -690,23 +647,20 @@ app.post(
     const now = new Date().toISOString();
 
     try {
-      const info = await runDbQuery(
-        `
-      INSERT INTO todos (task, description, category, priority, dueDate, completed, createdAt, updatedAt)
-      VALUES (?, ?, ?, ?, ?, 0, ?, ?)
-    `,
-        [
-          xss(task),
-          description ? xss(description) : null,
-          xss(category),
-          priority || "medium",
-          dueDate || null,
-          now,
-          now,
-        ],
-      );
+      const entry = {
+        id: nextTodoId++,
+        task: xss(task),
+        description: description ? xss(description) : null,
+        category: xss(category),
+        priority: priority || "medium",
+        dueDate: getDateOnly(dueDate),
+        completed: 0,
+        completedAt: null,
+        createdAt: now,
+        updatedAt: now,
+      };
 
-      const entry = await getTodoById(info.lastID);
+      todos.push(entry);
 
       todoCreatedTotal.labels(priority || "medium").inc();
       updateTodoMetrics();
@@ -714,7 +668,7 @@ app.post(
       logInfo(`Todo created: ${task}`, {
         priority: priority || "medium",
         category,
-        id: info.lastID,
+        id: entry.id,
       });
       res.json({ success: true, entry });
     } catch (err) {
@@ -727,7 +681,7 @@ app.post(
 app.put(
   "/api/todos/:id/toggle",
   [param("id").isInt({ min: 1 }).withMessage("Invalid todo ID")],
-  async (req, res) => {
+  (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ success: false, errors: errors.array() });
@@ -736,7 +690,7 @@ app.put(
     const id = parseInt(req.params.id);
 
     try {
-      const todo = await getTodoById(id);
+      const todo = getTodoById(id);
 
       if (!todo) {
         return res
@@ -749,16 +703,9 @@ app.put(
       const completedAt = newCompleted ? new Date().toISOString() : null;
       const now = new Date().toISOString();
 
-      await runDbQuery(
-        `
-      UPDATE todos 
-      SET completed = ?, completedAt = ?, updatedAt = ?
-      WHERE id = ?
-    `,
-        [newCompleted, completedAt, now, id],
-      );
-
-      const updatedTodo = await getTodoById(id);
+      todo.completed = newCompleted;
+      todo.completedAt = completedAt;
+      todo.updatedAt = now;
 
       if (newCompleted && !wasCompleted) {
         todoCompletedTotal.labels(todo.priority || "medium").inc();
@@ -768,7 +715,7 @@ app.put(
       logInfo(`Todo toggled: ${todo.task}`, {
         completed: newCompleted === 1,
       });
-      res.json({ success: true, todo: updatedTodo });
+      res.json({ success: true, todo });
     } catch (err) {
       logError("Failed to toggle todo", { error: err.message });
       res.status(500).json({ success: false, error: "Failed to toggle todo" });
@@ -779,7 +726,7 @@ app.put(
 app.delete(
   "/api/todos/:id",
   [param("id").isInt({ min: 1 }).withMessage("Invalid todo ID"), strictLimiter],
-  async (req, res) => {
+  (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ success: false, errors: errors.array() });
@@ -788,20 +735,20 @@ app.delete(
     const id = parseInt(req.params.id);
 
     try {
-      const todo = await getTodoById(id);
+      const todoIndex = todos.findIndex((todo) => todo.id === id);
 
-      if (!todo) {
+      if (todoIndex === -1) {
         return res
           .status(404)
           .json({ success: false, error: "Todo not found" });
       }
 
-      await runDbQuery("DELETE FROM todos WHERE id = ?", [id]);
+      const [deletedTodo] = todos.splice(todoIndex, 1);
 
       todoDeletedTotal.inc();
       updateTodoMetrics();
 
-      logInfo(`Todo deleted: ${todo.task}`, { id });
+      logInfo(`Todo deleted: ${deletedTodo.task}`, { id });
       res.json({ success: true });
     } catch (err) {
       logError("Failed to delete todo", { error: err.message });
@@ -810,9 +757,9 @@ app.delete(
   },
 );
 
-app.get("/api/info", async (req, res) => {
+app.get("/api/info", (req, res) => {
   try {
-    const { active, completed, total } = await getTodoMetrics();
+    const { active, completed, total } = getTodoMetrics();
     logInfo("System info requested");
     res.json({
       version,
@@ -829,37 +776,28 @@ app.get("/api/info", async (req, res) => {
   }
 });
 
-app.get("/api/stats", async (req, res) => {
+app.get("/api/stats", (req, res) => {
   try {
-    const categories = ["work", "personal", "shopping", "health", "other"];
     const stats = {
       byCategory: {},
       byPriority: {},
       overdue: 0,
     };
 
-    for (const cat of categories) {
-      const row = await getDbOne(
-        "SELECT COUNT(*) as count FROM todos WHERE category = ? AND completed = 0",
-        [cat],
-      );
-      stats.byCategory[cat] = row.count;
+    for (const category of todoCategories) {
+      stats.byCategory[category] = getActiveCategoryCount(category);
     }
 
-    for (const pri of ["low", "medium", "high"]) {
-      const row = await getDbOne(
-        "SELECT COUNT(*) as count FROM todos WHERE priority = ? AND completed = 0",
-        [pri],
-      );
-      stats.byPriority[pri] = row.count;
+    for (const priority of todoPriorities) {
+      stats.byPriority[priority] = getActivePriorityCount(priority);
     }
 
-    const now = new Date().toISOString().split("T")[0];
-    const overdueRow = await getDbOne(
-      "SELECT COUNT(*) as count FROM todos WHERE dueDate < ? AND completed = 0",
-      [now],
-    );
-    stats.overdue = overdueRow.count;
+    const today = new Date().toISOString().split("T")[0];
+    stats.overdue = todos.filter((todo) => {
+      if (todo.completed !== 0 || !todo.dueDate) return false;
+      const dueDate = getDateOnly(todo.dueDate);
+      return dueDate !== null && dueDate < today;
+    }).length;
 
     res.json(stats);
   } catch (err) {
