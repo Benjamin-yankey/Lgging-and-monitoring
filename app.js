@@ -299,7 +299,9 @@ async function updateTodoMetrics() {
     todoCountCompleted.set(completed);
 
     for (const category of todoCategories) {
-      todoCountByCategory.labels(category).set(getActiveCategoryCount(category));
+      todoCountByCategory
+        .labels(category)
+        .set(getActiveCategoryCount(category));
     }
   } catch (err) {
     logError("Failed to update todo metrics", { error: err.message });
@@ -430,14 +432,23 @@ app.get("/", (req, res) => {
     <script>
         let currentFilter = 'all';
         let allTodos = [];
+        const HTTPS_REDIRECT_FLAG = 'todo_http_redirect_attempted';
+
+        if (window.location.protocol === 'https:') {
+            if (!sessionStorage.getItem(HTTPS_REDIRECT_FLAG)) {
+                sessionStorage.setItem(HTTPS_REDIRECT_FLAG, 'true');
+                const httpUrl = new URL(window.location.href);
+                httpUrl.protocol = 'http:';
+                window.location.replace(httpUrl.toString());
+            } else {
+                console.error('HTTPS is not supported by this server. Open http:// instead.');
+            }
+        } else {
+            sessionStorage.removeItem(HTTPS_REDIRECT_FLAG);
+        }
 
         function getApiUrl(path) {
-            // Force HTTP for API calls - the server doesn't support HTTPS
-            let origin = window.location.origin;
-            if (origin.startsWith('https://')) {
-                origin = origin.replace('https://', 'http://');
-            }
-            return new URL(path, origin);
+            return new URL(path, window.location.origin);
         }
         
         function loadTodos(search = '') {
@@ -821,7 +832,7 @@ app.get("/metrics", async (req, res) => {
 });
 
 if (require.main === module) {
-  const port = process.env.PORT || 5000;
+  const port = process.env.PORT || 5001;
   app.listen(port, "0.0.0.0", () => {
     logInfo(`Server running on port ${port}`);
   });
